@@ -1,14 +1,15 @@
-# cs203D-team2-p2
-Use a C++11-compatible GCC compiler. The commands below are for PowerShell on Windows. Run them from the repository root.
+Build with C++11 or newer. From the repository root in PowerShell:
 
 ```powershell
 g++ -std=c++11 -Wall -Wextra app/main.cpp src/structA/StructureA.cpp -o app.exe
 Get-Content tests/application_commands.in | .\app.exe --structure A
 Get-Content tests/application_commands.in | .\app.exe --structure B
+.\app.exe --structure A --words tests/application_words.in
+.\app.exe --structure B --words tests/application_words.in
 ```
 
-Structure B is implemented in `src/structB/LinearProbing.hpp`. Its separate driver, `Structure_B.cpp`, has its own `main()` and is built separately.
+The first two runs should match `tests/application_commands.expected`. The last two should match `tests/application_words.expected`. Structure B is implemented in its header. Its standalone driver has a separate `main()`.
 
-Both runs should print the lines in `tests/application_commands.expected`. The application reads commands from standard input. `I key value` inserts or updates, `G key` prints the value or `NOT_FOUND`, `D key` prints `NOT_FOUND` only if the key is absent, and `N` prints the current key count.
+In command mode, `I` inserts or updates, `G` prints a value or `NOT_FOUND`, `D` prints `NOT_FOUND` when the key is absent, and `N` prints the number of live keys.
 
-Also run the two commands with `tests/application_edge_cases.in` and `tests/application_resize.in` in place of `tests/application_commands.in`. Compare each run with the corresponding `.expected` file. The resize test inserts 20 keys and checks that all 20 values remain retrievable with the supplied default capacities.
+In word mode, each run starts with a fresh table. A word consists of ASCII letters. The program converts capitals to lowercase and treats punctuation, digits, spaces, and other bytes as separators. It prints one `word count` line per distinct word in first-appearance order. Replace the sample filename with your corpus file and use the same file for both structures. Counts are stored in the selected hash table. The extra vector records only the order of distinct words.
