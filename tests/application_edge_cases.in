@@ -1,0 +1,15 @@
+N
+I apple 4
+I banana 2
+I apple 9
+G apple
+N
+G missing
+D banana
+G banana
+D banana
+N
+D apple
+N
+I apple -1
+G apple
