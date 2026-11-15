@@ -1,4 +1,66 @@
-// Helper function to create a random string of length 1 to 25
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <random>
+
+using namespace std;
+
+// --- 1. OUR TRUSTED ORACLE (Sorted Array + Binary Search) ---
+struct Entry {
+    string key;
+    int value;
+};
+
+class SortedArrayOracle {
+private:
+    vector<Entry> arr;
+
+    int binarySearch(const string& key) {
+        int low = 0;
+        int high = (int)arr.size() - 1;
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+            if (arr[mid].key == key) return mid;
+            else if (arr[mid].key < key) low = mid + 1;
+            else high = mid - 1;
+        }
+        return low;
+    }
+
+public:
+    void insert(const string& key, int value) {
+        int pos = binarySearch(key);
+        if (pos < (int)arr.size() && arr[pos].key == key) {
+            arr[pos].value = value;
+        } else {
+            arr.insert(arr.begin() + pos, {key, value});
+        }
+    }
+
+    string get(const string& key) {
+        int pos = binarySearch(key);
+        if (pos < (int)arr.size() && arr[pos].key == key) {
+            return to_string(arr[pos].value);
+        }
+        return "NOT_FOUND";
+    }
+
+    bool remove(const string& key) {
+        int pos = binarySearch(key);
+        if (pos < (int)arr.size() && arr[pos].key == key) {
+            arr.erase(arr.begin() + pos);
+            return true;
+        }
+        return false;
+    }
+
+    int count() {
+        return (int)arr.size();
+    }
+};
+
+// --- 2. REALISTIC RANDOM KEY GENERATOR (Lengths 1 to 25, no spaces) ---
 string makeRandomKey(mt19937& rng) {
     const string chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     uniform_int_distribution<int> lenDist(1, 25);
@@ -12,14 +74,15 @@ string makeRandomKey(mt19937& rng) {
     return s;
 }
 
+// --- 3. DIFFERENTIAL TEST GENERATOR ---
 int main() {
     const int FIXED_SEED = 42;
     const int NUM_OPS = 100000; // 10^5 random operations
-    const int KEY_POOL = 500;   // 500 distinct random strings
+    const int KEY_POOL = 500;   // 500 varied random keys reused across 10^5 ops
 
     mt19937 rng(FIXED_SEED);
 
-    // Step 1: Build a pool of 500 varied random keys (lengths 1 to 25)
+    // Pre-generate 500 varied-length random keys
     vector<string> pool(KEY_POOL);
     for (int i = 0; i < KEY_POOL; i++) {
         pool[i] = makeRandomKey(rng);
@@ -34,25 +97,30 @@ int main() {
 
     SortedArrayOracle oracle;
 
-    // Step 2: Run 100,000 operations picking from our 500 random strings
     for (int i = 0; i < NUM_OPS; i++) {
         int choice = opDist(rng);
         string key = pool[poolIdxDist(rng)];
 
         if (choice <= 35) {
+            // 35% Insert / Update (I)
             int val = valDist(rng);
             opFile << "I " << key << " " << val << "\n";
             oracle.insert(key, val);
         } 
         else if (choice <= 70) {
+            // 35% Delete (D) - Prints NOT_FOUND if absent, nothing if deleted
             opFile << "D " << key << "\n";
-            oracle.remove(key);
+            if (!oracle.remove(key)) {
+                ansFile << "NOT_FOUND\n";
+            }
         } 
         else if (choice <= 95) {
+            // 25% Get / Lookup (G) - Prints integer value or NOT_FOUND
             opFile << "G " << key << "\n";
             ansFile << oracle.get(key) << "\n";
         } 
         else {
+            // 5% Count (N)
             opFile << "N\n";
             ansFile << oracle.count() << "\n";
         }
