@@ -44,23 +44,25 @@ public:
         }
     }
 
-    // G <key>: Print "FOUND <value>" or "NOT FOUND"
+    // G <key>: Return the value as a string, or "NOT_FOUND"
     string get(const string& key) {
         int pos = binarySearch(key);
 
         if (pos < (int)arr.size() && arr[pos].key == key) {
-            return "FOUND " + to_string(arr[pos].value);
+            return to_string(arr[pos].value);
         }
-        return "NOT FOUND";
+        return "NOT_FOUND";
     }
 
-    // D <key>: Delete key if it exists
-    void remove(const string& key) {
+    // D <key>: Delete key if present; return true if deleted, false if absent
+    bool remove(const string& key) {
         int pos = binarySearch(key);
 
         if (pos < (int)arr.size() && arr[pos].key == key) {
             arr.erase(arr.begin() + pos);
+            return true;
         }
+        return false;
     }
 
     // N: Return total number of active keys
@@ -89,7 +91,9 @@ int main() {
         else if (command == "D") {
             string key;
             cin >> key;
-            oracle.remove(key);
+            if (!oracle.remove(key)) {
+                cout << "NOT_FOUND\n";
+            }
         } 
         else if (command == "N") {
             cout << oracle.count() << "\n";
