@@ -3,33 +3,50 @@
 
 #include <string>
 #include <cstddef>
-using namespace std;
 
-class SeededHash;
+using namespace std;
+// Seeded hash class
+class SeededHash {
+private:
+    unsigned long long seed;
+
+public:
+    SeededHash(unsigned long long s);
+
+    unsigned long long operator()(const string& key) const;
+};
+
+
+// Structure A - Separate Chaining
 class StructureA {
 private:
+
     struct Node {
         string key;
         int value;
         Node* next;
     };
-    const SeededHash* seededHash_;
-    size_t capacity_;
-    Node** buckets_;
-    int size_;
-    double maxLoad_;
 
-    static unsigned long long polynomialHash(const string& key);
+    const SeededHash* seededHash_;
+
+    Node** buckets;
+    size_t capacity;
+    int totalKeys;
+    double maxLoad;
+
+    unsigned long long polynomialHash(const string& key) const;
     unsigned long long hashKey(const string& key) const;
 
     void doubleCapacity();
 
 public:
-    explicit StructureA(const SeededHash* hash = nullptr,
-                        size_t initialCapacity = 16,
-                        double maxLoad = 1.0);
+
+    StructureA(const SeededHash* hash = nullptr,
+               size_t initialCapacity = 16,
+               double load = 1.0);
 
     ~StructureA();
+
     StructureA(const StructureA&) = delete;
     StructureA& operator=(const StructureA&) = delete;
 
