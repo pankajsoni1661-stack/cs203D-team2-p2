@@ -1,5 +1,4 @@
 #include "StructureA.h"
-
 #include <limits>
 #include <stdexcept>
 
