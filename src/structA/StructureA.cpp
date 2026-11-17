@@ -1,133 +1,153 @@
 #include "StructureA.h"
-#include <limits>
-#include <stdexcept>
 
-using namespace std;
+// Constructor
+StructureA::StructureA() {
+    capacity = 16;
+    totalKeys = 0;
+    buckets = new Node*[capacity]();
+}
 
-StructureA::StructureA()
-    : capacity_(16), buckets_(new Node*[capacity_]{}), size_(0) {}
-
+// Destructor
 StructureA::~StructureA() {
-    for (size_t i = 0; i < capacity_; ++i) {
-        Node* node = buckets_[i];
+    for (int i = 0; i < capacity; i++) {
+        Node* current = buckets[i];
 
-        while (node != nullptr) {
-            Node* next = node->next;
-            delete node;
-            node = next;
+        while (current != nullptr) {
+            Node* nextNode = current->next;
+            delete current;
+            current = nextNode;
         }
     }
 
-    delete[] buckets_;
+    delete[] buckets;
 }
 
+// Polynomial hash function
 unsigned long long StructureA::polynomialHash(const string& key) {
     unsigned long long hash = 0;
 
-    for (unsigned char ch : key) {
-        hash = hash * 31 + ch;
+    for (int i = 0; i < (int)key.length(); i++) {
+        hash = hash * 31 + (unsigned char)key[i];
     }
 
     return hash;
 }
 
+// Insert or update
 void StructureA::insert(const string& key, int value) {
-    const auto hash = polynomialHash(key);
-    size_t index = hash % capacity_;
+    int index = polynomialHash(key) % capacity;
 
-    // Update the existing key if it is already in this chain.
-    for (Node* node = buckets_[index]; node != nullptr; node = node->next) {
-        if (node->key == key) {
-            node->value = value;
+    Node* current = buckets[index];
+
+    while (current != nullptr) {
+        if (current->key == key) {
+            current->value = value;
             return;
         }
+
+        current = current->next;
     }
 
-    if (size_ == numeric_limits<int>::max()) {
-        throw length_error("StructureA key count limit reached");
+    if (totalKeys + 1 > capacity) {
+        resize();
+        index = polynomialHash(key) % capacity;
     }
 
-    // Double the bucket count before the load factor exceeds 1.0.
-    if (static_cast<size_t>(size_) == capacity_) {
-        doubleCapacity();
-        index = hash % capacity_;
-    }
+    Node* newNode = new Node;
+    newNode->key = key;
+    newNode->value = value;
+    newNode->next = buckets[index];
 
-    buckets_[index] = new Node{key, value, buckets_[index]};
-    ++size_;
+    buckets[index] = newNode;
+    totalKeys++;
 }
 
-bool StructureA::get(const string& key, int& value) const {
-    size_t probes;
-    return get(key, value, probes);
-}
-
-bool StructureA::get(const string& key, int& value, size_t& probes) const {
+// Search with probe counting
+bool StructureA::get(const string& key, int& value, int& probes) {
     probes = 0;
-    const size_t index = polynomialHash(key) % capacity_;
 
-    for (const Node* node = buckets_[index]; node != nullptr; node = node->next) {
-        ++probes;
-        if (node->key == key) {
-            value = node->value;
+    int index = polynomialHash(key) % capacity;
+    Node* current = buckets[index];
+
+    while (current != nullptr) {
+        probes++;
+
+        if (current->key == key) {
+            value = current->value;
             return true;
         }
+
+        current = current->next;
     }
 
     return false;
 }
 
+// Simple search
+bool StructureA::get(const string& key, int& value) {
+    int probes = 0;
+    return get(key, value, probes);
+}
+
+// Delete a key
 bool StructureA::remove(const string& key) {
-    const size_t index = polynomialHash(key) % capacity_;
+    int index = polynomialHash(key) % capacity;
+
+    Node* current = buckets[index];
     Node* previous = nullptr;
-    Node* node = buckets_[index];
 
-    while (node != nullptr && node->key != key) {
-        previous = node;
-        node = node->next;
+    while (current != nullptr) {
+        if (current->key == key) {
+            if (previous == nullptr) {
+                buckets[index] = current->next;
+            } else {
+                previous->next = current->next;
+            }
+
+            delete current;
+            totalKeys--;
+            return true;
+        }
+
+        previous = current;
+        current = current->next;
     }
 
-    if (node == nullptr) {
-        return false;
-    }
-
-    if (previous == nullptr) {
-        buckets_[index] = node->next;
-    } else {
-        previous->next = node->next;
-    }
-
-    delete node;
-    --size_;
-    return true;
+    return false;
 }
 
-int StructureA::count() const {
-    return size_;
+// Number of stored keys
+int StructureA::count() {
+    return totalKeys;
 }
 
-size_t StructureA::bucketCount() const {
-    return capacity_;
+// Number of buckets
+int StructureA::bucketCount() {
+    return capacity;
 }
 
-void StructureA::doubleCapacity() {
-    const size_t newCapacity = capacity_ * 2;
-    Node** newBuckets = new Node*[newCapacity]{};
+// Double the table capacity
+void StructureA::resize() {
+    int oldCapacity = capacity;
+    Node** oldBuckets = buckets;
 
-    for (size_t i = 0; i < capacity_; ++i) {
-        Node* node = buckets_[i];
+    capacity = capacity * 2;
+    buckets = new Node*[capacity]();
 
-        while (node != nullptr) {
-            // Save the old link before moving the node into its new chain.
-            Node* next = node->next;
-            const size_t index = polynomialHash(node->key) % newCapacity;
-            node->next = newBuckets[index];
-            newBuckets[index] = node;
-            node = next;
+    for (int i = 0; i < oldCapacity; i++) {
+        Node* current = oldBuckets[i];
+
+        while (current != nullptr) {
+            Node* nextNode = current->next;
+
+            int index = polynomialHash(current->key) % capacity;
+
+            current->next = buckets[index];
+            buckets[index] = current;
+
+            current = nextNode;
         }
     }
 
-    delete[] buckets_;
-    buckets_ = newBuckets;
-    capacity_ = newCapacity;
+    delete[] oldBuckets;
 }
