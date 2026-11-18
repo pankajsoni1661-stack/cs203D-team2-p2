@@ -4,12 +4,18 @@
 
 using namespace std;
 
-int main() {
-    // Optimize standard I/O operations for speed (handling 10^6 inputs smoothly)
+int main(int argc, char* argv[]) {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
-    LinearProbingTable ht;
+    bool use_seeded = false;
+    for (int i = 1; i < argc; i++) {
+        if (string(argv[i]) == "--seeded") {
+            use_seeded = true;
+        }
+    }
+
+    LinearProbingTable ht(16, 31, use_seeded);
     char cmd;
 
     while (cin >> cmd) {
