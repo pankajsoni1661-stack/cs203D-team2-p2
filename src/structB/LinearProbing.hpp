@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <string>
+#include <random>
 
 using namespace std;
 
@@ -28,15 +29,24 @@ public:
     int capacity;
     int num_keys;
     int num_tombstones;
-    int base;
+    unsigned long long base;
     long long probes;
 
-    LinearProbingTable(int init_cap = 16, int hash_base = 31) {
+    LinearProbingTable(int init_cap = 16, unsigned long long hash_base = 31, bool use_seeded_hash = false) {
         capacity = init_cap;
         num_keys = 0;
         num_tombstones = 0;
-        base = hash_base;
         probes = 0;
+
+        if (use_seeded_hash) {
+            random_device rd;
+            mt19937_64 gen(rd());
+            uniform_int_distribution<unsigned long long> dist(257, 1000000007ULL);
+            base = dist(gen) | 1ULL;
+        } else {
+            base = hash_base;
+        }
+
         table = new Slot[capacity];
     }
 
@@ -137,6 +147,18 @@ public:
 
     int size() {
         return num_keys;
+    }
+
+    bool checkInvariants() {
+        int counted = 0;
+        for (int i = 0; i < capacity; i++) {
+            if (table[i].state == OCCUPIED) {
+                counted++;
+                int val = 0;
+                if (!get(table[i].key, val) || val != table[i].value) return false;
+            }
+        }
+        return counted == num_keys;
     }
 };
 
