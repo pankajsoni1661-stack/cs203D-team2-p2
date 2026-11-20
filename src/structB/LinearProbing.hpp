@@ -4,7 +4,6 @@
 #include <iostream>
 #include <string>
 #include <random>
-#include "../structA/StructureA.h"
 
 using namespace std;
 
@@ -25,8 +24,6 @@ struct Slot {
 };
 
 class LinearProbingTable {
-    const SeededHash* seededHash_ = nullptr;
-
 public:
     Slot* table;
     int capacity;
@@ -55,21 +52,11 @@ public:
         table = new Slot[capacity];
     }
 
-    LinearProbingTable(int init_cap, unsigned long long hash_base,
-                       const SeededHash* hash)
-        : LinearProbingTable(init_cap, hash_base, false) {
-        seededHash_ = hash;
-    }
-
     ~LinearProbingTable() {
         delete[] table;
     }
 
     int hashFunction(const string& key) {
-        if (seededHash_ != nullptr) {
-            return (*seededHash_)(key) % capacity;
-        }
-
         unsigned long long h = 0;
         for (char c : key) {
             h = h * base + (unsigned char)c;
