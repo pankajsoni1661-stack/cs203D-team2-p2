@@ -16,7 +16,7 @@ A search for mango starts at slot 2. If deleting apple marks slot 2 EMPTY, the s
 
 **Member 5 · Adwit Tiwari**
 
-Structure A uses separate chaining. Structure B uses linear probing. All measurements below were collected with MSVC 14.50.35717, C++17 and `/O2`, on x64 Windows build 26300 with an Intel Core i7-14650HX. Each plotted point or bar is a mean of five runs. Error bars show one sample standard deviation.
+Structure A uses separate chaining. Structure B uses linear probing. The probe and corpus measurements were collected with MSVC 14.50.35717, C++17 and `/O2`, on x64 Windows build 26300 with an Intel Core i7-14650HX. Each plotted point or bar is a mean of five runs. Error bars show one sample standard deviation.
 
 ### Lookup probes
 
@@ -50,19 +50,21 @@ The team corpus contains 366,832 word tokens and 10,307 distinct words under the
 
 Seeded hashing took more time on this corpus in both structures. The seeded implementation restarts its pseudorandom generator on every hash call. That cost is part of what we timed. These runs did not isolate how much time the hash itself consumed. [Raw corpus data](results/corpus.csv)
 
-### Seeded replay on the supplied collision workloads
+### Fixed and seeded replay on the supplied collision workloads
 
-For each workload we created fresh seeded tables with seed 42. The timer covered command parsing, inserts, lookups and creation of the in-memory answers. All 30 runs matched the expected answers and final key counts. These measurements cover a larger timed operation than the corpus benchmark.
+Each workload contains one insert and one lookup per distinct key. The replay timer covers command parsing, table operations and creation of the in-memory answers. The table gives mean milliseconds from five numbered runs per cell. All 60 runs recorded PASS and the expected final key count. Seeded runs used seed 42. The six supplied CSVs contain both modes for each structure and size. Their machine, compiler and build flags were not recorded.
 
-| Distinct keys | Commands | A (ms) | B (ms) |
-| ---: | ---: | ---: | ---: |
-| 1,024 | 2,048 | 6.33 ± 0.15 | 5.85 ± 0.12 |
-| 4,096 | 8,192 | 26.49 ± 0.79 | 23.91 ± 0.37 |
-| 8,192 | 16,384 | 54.34 ± 1.13 | 49.44 ± 1.86 |
+| Distinct keys | Commands | A fixed (ms) | A seeded (ms) | B fixed (ms) | B seeded (ms) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1,024 | 2,048 | 21.59 | 18.65 | 28.58 | 8.52 |
+| 4,096 | 8,192 | 241.15 | 79.54 | 355.08 | 33.35 |
+| 8,192 | 16,384 | 957.43 | 159.42 | 1,345.13 | 60.04 |
 
-![Mean seeded replay time in milliseconds by distinct key count](results/figs/seeded_replay.png)
+![Fixed and seeded mean replay times for both structures, with sample standard deviations](results/figs/replay_comparison.png)
 
-Replay time roughly doubled for both structures from 4,096 to 8,192 keys as the command count doubled. **Fixed-hash replay timings are pending.** A comparison of the two hash modes on the same workload requires those readings. The raw CSV records each input's SHA-256, size, seed, individual timing and verification result. [Raw seeded replay data](results/seeded_replay.csv)
+At 8,192 keys, the fixed replay took 6.0 times as long as the seeded replay for chaining and 22.4 times as long for linear probing. Doubling the workload from 4,096 to 8,192 keys increased fixed replay time by about fourfold for each structure, while seeded replay time grew by about twofold. These comparisons use the paired modes from the supplied files. The earlier local seeded measurements are archived separately.
+
+Run `python bench/plot_replay.py` from the repository root to validate the numbered runs, check the recorded means and regenerate the figure. [Raw replay CSVs](results/replay) · [Earlier seeded measurements](results/seeded_replay.csv)
 
 ### Reproduce the probe and corpus results
 
