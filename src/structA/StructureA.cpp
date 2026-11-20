@@ -2,8 +2,6 @@
 #include <random>
 
 using namespace std;
-
-// Structure A constructor
 StructureA::StructureA(bool useSeededMode,
                        unsigned long long hashSeed,
                        size_t initialCapacity,
@@ -27,7 +25,6 @@ StructureA::StructureA(bool useSeededMode,
     buckets = new Node*[capacity]();
 }
 
-// Destructor
 StructureA::~StructureA() {
     for (size_t i = 0; i < capacity; i++) {
         Node* current = buckets[i];
@@ -40,7 +37,7 @@ StructureA::~StructureA() {
     delete[] buckets;
 }
 
-// Fixed polynomial hashing (base 31)
+
 unsigned long long StructureA::polynomialHash(const string& key) const {
     unsigned long long hash = 0;
     for (unsigned char ch : key) {
@@ -49,7 +46,6 @@ unsigned long long StructureA::polynomialHash(const string& key) const {
     return hash;
 }
 
-// Original seeded hashing math as a regular helper function (no functor!)
 unsigned long long StructureA::seededHash(const string& key) const {
     const unsigned long long MOD = 1000000007ULL;
 
@@ -64,15 +60,12 @@ unsigned long long StructureA::seededHash(const string& key) const {
     return hash;
 }
 
-// Choose between fixed and seeded hashing
 unsigned long long StructureA::hashKey(const string& key) const {
     if (useSeeded) {
         return seededHash(key);
     }
     return polynomialHash(key);
 }
-
-// Insert or update
 void StructureA::insert(const string& key, int value) {
     size_t index = hashKey(key) % capacity;
     Node* current = buckets[index];
@@ -84,8 +77,7 @@ void StructureA::insert(const string& key, int value) {
         }
         current = current->next;
     }
-
-    // Resize if needed
+  
     while ((totalKeys + 1.0) / capacity > maxLoad) {
         doubleCapacity();
     }
@@ -100,7 +92,6 @@ void StructureA::insert(const string& key, int value) {
     totalKeys++;
 }
 
-// Search with probe count
 bool StructureA::get(const string& key, int& value, size_t& probes) const {
     probes = 0;
     size_t index = hashKey(key) % capacity;
@@ -117,13 +108,11 @@ bool StructureA::get(const string& key, int& value, size_t& probes) const {
     return false;
 }
 
-// Simple search
 bool StructureA::get(const string& key, int& value) const {
     size_t probes = 0;
     return get(key, value, probes);
 }
 
-// Delete a key
 bool StructureA::remove(const string& key) {
     size_t index = hashKey(key) % capacity;
     Node* current = buckets[index];
@@ -146,22 +135,18 @@ bool StructureA::remove(const string& key) {
     return false;
 }
 
-// Number of keys
 int StructureA::count() const {
     return totalKeys;
 }
 
-// Number of buckets
 size_t StructureA::bucketCount() const {
     return capacity;
 }
 
-// Current load factor
 double StructureA::loadFactor() const {
     return (double)totalKeys / capacity;
 }
 
-// Check stored keys and bucket positions
 bool StructureA::checkInvariants() const {
     int total = 0;
     for (size_t i = 0; i < capacity; i++) {
@@ -191,7 +176,6 @@ bool StructureA::checkInvariants() const {
     return total == totalKeys;
 }
 
-// Double capacity
 void StructureA::doubleCapacity() {
     size_t newCapacity = capacity * 2;
     Node** newBuckets = new Node*[newCapacity]();
