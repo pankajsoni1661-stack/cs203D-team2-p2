@@ -5,43 +5,34 @@
 #include <cstddef>
 
 using namespace std;
-// Seeded hash class
-class SeededHash {
-private:
-    unsigned long long seed;
-
-public:
-    SeededHash(unsigned long long s);
-
-    unsigned long long operator()(const string& key) const;
-};
-
 
 // Structure A - Separate Chaining
 class StructureA {
 private:
-
     struct Node {
         string key;
         int value;
         Node* next;
     };
 
-    const SeededHash* seededHash_;
-
     Node** buckets;
     size_t capacity;
     int totalKeys;
     double maxLoad;
 
+    bool useSeeded;
+    unsigned long long seed;
+
     unsigned long long polynomialHash(const string& key) const;
+    unsigned long long seededHash(const string& key) const;
     unsigned long long hashKey(const string& key) const;
 
     void doubleCapacity();
 
 public:
-
-    StructureA(const SeededHash* hash = nullptr,
+    // Pass useSeeded = true (with an optional seed) for seeded mode, or false for fixed base-31
+    StructureA(bool useSeeded = false,
+               unsigned long long seed = 42,
                size_t initialCapacity = 16,
                double load = 1.0);
 
@@ -51,17 +42,12 @@ public:
     StructureA& operator=(const StructureA&) = delete;
 
     void insert(const string& key, int value);
-
     bool get(const string& key, int& value) const;
-
-    bool get(const string& key, int& value,
-             size_t& probes) const;
-
+    bool get(const string& key, int& value, size_t& probes) const;
     bool remove(const string& key);
 
     int count() const;
     size_t bucketCount() const;
-
     double loadFactor() const;
     bool checkInvariants() const;
 };
