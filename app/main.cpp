@@ -1,9 +1,8 @@
 #include <fstream>
 #include <chrono>
-#include <cstdint>
+#include <climits>
 #include <iomanip>
 #include <iostream>
-#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -49,55 +48,80 @@ int runCommands(Table& table, istream& input = cin, ostream& output = cout) {
         }
     }
 
-    return input.bad() || !output ? 1 : 0;
+    if (input.bad() || !output) {
+        return 1;
+    }
+    return 0;
+}
+
+// Add one word to the selected table.
+template <typename Table>
+bool addWord(Table& table, vector<string>& words, string word) {
+    if (word.empty()) {
+        return true;
+    }
+
+    int count = 0;
+    if (!table.get(word, count)) {
+        words.push_back(word);
+    }
+    if (count == INT_MAX) {
+        cerr << "Word count is too large.\n";
+        return false;
+    }
+    table.insert(word, count + 1);
+    return true;
 }
 
 template <typename Table>
 int runWordCounter(Table& table, istream& input, ostream& output) {
-    vector<string> distinctWords;
+    vector<string> words;
     string word;
-    char character;
+    char ch;
 
-    // Flush the current word at each separator and once more at EOF.
-    while (true) {
-        bool hasCharacter = static_cast<bool>(input.get(character));
-        if (hasCharacter && character >= 'A' && character <= 'Z') {
-            character = static_cast<char>(character - 'A' + 'a');
+    // Read one character at a time.
+    while (input.get(ch)) {
+        if (ch >= 'A' && ch <= 'Z') {
+            ch = ch - 'A' + 'a';
         }
-        if (hasCharacter && character >= 'a' && character <= 'z') {
-            word += character;
-            continue;
-        }
-        if (!word.empty()) {
-            int count = 0;
-            if (!table.get(word, count)) {
-                distinctWords.push_back(word);
-            }
-            if (count == numeric_limits<int>::max()) {
-                cerr << "Word count is too large for the table.\n";
+
+        if (ch >= 'a' && ch <= 'z') {
+            word += ch;
+        } else {
+            if (!addWord(table, words, word)) {
                 return 1;
             }
-            table.insert(word, count + 1);
-            word.clear();
+            word = "";
         }
-        if (!hasCharacter) break;
     }
+
     if (!input.eof() || input.bad()) {
         cerr << "Could not read the text file.\n";
         return 1;
     }
 
-    // This vector controls output order. The table holds every count.
-    for (const string& key : distinctWords) {
-        int count;
-        if (!table.get(key, count)) return 1;
-        output << key << ' ' << count << '\n';
+    // The file may finish immediately after its last word.
+    if (!addWord(table, words, word)) {
+        return 1;
     }
-    return output ? 0 : 1;
+
+    // The vector stores word order. The hash table stores the counts.
+    for (int i = 0; i < (int)words.size(); i++) {
+        int count = 0;
+        if (!table.get(words[i], count)) {
+            return 1;
+        }
+        output << words[i] << ' ' << count << '\n';
+    }
+
+    if (!output) {
+        return 1;
+    }
+    return 0;
 }
 
 template <typename Table>
-int runWordFile(Table& table, const char* filename, ostream& output) {
+int runWordFile(Table& table, string filename, ostream& output) {
     ifstream input(filename, ios::binary);
     if (!input) {
         cerr << "Could not open " << filename << '\n';
@@ -107,7 +131,7 @@ int runWordFile(Table& table, const char* filename, ostream& output) {
 }
 
 template <typename Table>
-int compareWordCounts(Table& fixed, Table& seeded, const char* filename) {
+int compareWordCounts(Table& fixed, Table& seeded, string filename) {
     ostringstream fixedCounts;
     if (runWordFile(fixed, filename, fixedCounts) != 0) return 1;
 
@@ -121,7 +145,10 @@ int compareWordCounts(Table& fixed, Table& seeded, const char* filename) {
 
     cout << "Fixed and seeded word counts match for "
          << keyCount(fixed) << " distinct words.\n";
-    return cout ? 0 : 1;
+    if (!cout) {
+        return 1;
+    }
+    return 0;
 }
 
 struct ReplayResult {
@@ -165,7 +192,7 @@ bool sameFinalState(Table& fixed, Table& seeded, const string& operations) {
 
 template <typename Table>
 int compareReplay(Table& fixed, Table& seeded, const string& operations,
-                  int run, const string& structure, uint64_t seed,
+                  int run, const string& structure, unsigned long long seed,
                   ostream& rows, double& fixedTotal, double& seededTotal) {
     ReplayResult fixedResult, seededResult;
     if (measureReplay(fixed, operations, fixedResult) != 0 ||
@@ -188,16 +215,22 @@ int compareReplay(Table& fixed, Table& seeded, const string& operations,
     return 0;
 }
 
-int runAttack(const string& structure, uint64_t seed, const char* filename) {
+int runAttack(const string& structure, unsigned long long seed, string filename) {
     ifstream file(filename, ios::binary);
     if (!file) {
         cerr << "Could not open " << filename << '\n';
         return 1;
     }
-    ostringstream buffer;
-    buffer << file.rdbuf();
-    if (file.bad() || !buffer) return 1;
-    const string operations = buffer.str();
+    // Read the file before starting the timer.
+    string operations;
+    string line;
+    while (getline(file, line)) {
+        operations += line;
+        operations += '\n';
+    }
+    if (file.bad()) {
+        return 1;
+    }
     if (operations.find_first_not_of(" \t\r\n") == string::npos) {
         cerr << "The attack input is empty.\n";
         return 1;
@@ -208,16 +241,15 @@ int runAttack(const string& structure, uint64_t seed, const char* filename) {
     rows << fixed << setprecision(6);
     rows << "run,structure,hash_mode,seed,replay_ms,final_keys,verification\n";
     for (int run = 1; run <= 5; ++run) {
-        SeededHash hash(seed);
         int status;
         if (structure == "A") {
             StructureA fixedTable;
-            StructureA seededTable(&hash);
+            StructureA seededTable(true, seed);
             status = compareReplay(fixedTable, seededTable, operations,
                                    run, structure, seed, rows, fixedTotal, seededTotal);
         } else {
             LinearProbingTable fixedTable;
-            LinearProbingTable seededTable(16, 31, &hash);
+            LinearProbingTable seededTable(16, 31, true, seed);
             status = compareReplay(fixedTable, seededTable, operations,
                                    run, structure, seed, rows, fixedTotal, seededTotal);
         }
@@ -227,7 +259,10 @@ int runAttack(const string& structure, uint64_t seed, const char* filename) {
     rows << "mean," << structure << ",seeded," << seed << ','
          << seededTotal / 5 << ",NA,PASS\n";
     cout << rows.str();
-    return cout ? 0 : 1;
+    if (!cout) {
+        return 1;
+    }
+    return 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -237,12 +272,17 @@ int main(int argc, char* argv[]) {
 
     int next = 3;
     bool useSeed = false;
-    uint64_t seed = 0;
+    unsigned long long seed = 0;
     if (next < argc && string(argv[next]) == "--seed") {
         if (next + 1 >= argc) return 1;
         string seedText = argv[next + 1];
-        if (seedText.empty() || seedText.find_first_not_of("0123456789") != string::npos) {
+        if (seedText.empty()) {
             return 1;
+        }
+        for (int i = 0; i < (int)seedText.size(); i++) {
+            if (seedText[i] < '0' || seedText[i] > '9') {
+                return 1;
+            }
         }
         istringstream seedInput(seedText);
         if (!(seedInput >> seed)) return 1;
@@ -250,42 +290,47 @@ int main(int argc, char* argv[]) {
         next += 2;
     }
 
-    const char* filename = nullptr;
-    bool compareWords = false;
-    bool attack = false;
+    string filename;
+    string mode = "commands";
     if (next < argc) {
         if (argc - next != 2) return 1;
-        string option = argv[next];
-        compareWords = option == "--compare-words";
-        attack = option == "--attack";
-        if (option != "--words" && !compareWords && !attack) return 1;
-        if ((compareWords || attack) && !useSeed) {
+        mode = argv[next];
+        if (mode != "--words" && mode != "--compare-words" && mode != "--attack") {
+            return 1;
+        }
+        if ((mode == "--compare-words" || mode == "--attack") && !useSeed) {
             cerr << "Pass --seed before the comparison option.\n";
             return 1;
         }
         filename = argv[next + 1];
     }
 
-    if (attack) return runAttack(choice, seed, filename);
-    SeededHash seededHash(seed);
-    const SeededHash* hash = useSeed ? &seededHash : nullptr;
+    if (mode == "--attack") {
+        return runAttack(choice, seed, filename);
+    }
 
     if (choice == "A") {
-        StructureA table(hash);
-        if (compareWords) {
+        StructureA table(useSeed, seed);
+        if (mode == "--compare-words") {
             StructureA fixed;
             return compareWordCounts(fixed, table, filename);
         }
-        return filename ? runWordFile(table, filename, cout) : runCommands(table);
+        if (mode == "--words") {
+            return runWordFile(table, filename, cout);
+        }
+        return runCommands(table);
     }
 
     if (choice == "B") {
-        LinearProbingTable table(16, 31, hash);
-        if (compareWords) {
+        LinearProbingTable table(16, 31, useSeed, seed);
+        if (mode == "--compare-words") {
             LinearProbingTable fixed;
             return compareWordCounts(fixed, table, filename);
         }
-        return filename ? runWordFile(table, filename, cout) : runCommands(table);
+        if (mode == "--words") {
+            return runWordFile(table, filename, cout);
+        }
+        return runCommands(table);
     }
 
     return 1;
