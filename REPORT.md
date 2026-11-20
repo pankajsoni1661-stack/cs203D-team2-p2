@@ -12,6 +12,71 @@ Suppose two different keys, apple and mango, both start at slot 2. Apple gets sl
 
 A search for mango starts at slot 2. If deleting apple marks slot 2 EMPTY, the search stops there and wrongly reports that mango is missing. If slot 2 is a TOMBSTONE, the search continues to slot 3 and finds mango. In Structure B, `remove()` sets the slot to TOMBSTONE, and `get()` only stops early when it sees EMPTY.
 
+## Measurements
+
+**Member 5 · Adwit Tiwari**
+
+Structure A uses separate chaining. Structure B uses linear probing. All measurements below were collected with MSVC 14.50.35717, C++17 and `/O2`, on x64 Windows build 26300 with an Intel Core i7-14650HX. Each plotted point or bar is a mean of five runs. Error bars show one sample standard deviation.
+
+### Lookup probes
+
+For each load from 0.1 through 0.9, we created fresh tables with 4,096 positions and no deletions. We tested identical printable keys in the four structure/hash combinations. We performed one successful lookup for each stored key and the same number of unsuccessful lookups. A probe counts a node comparison in A or an inspected slot in B, including the empty slot that ends a miss.
+
+| Load | Hash | A hit | A miss | B hit | B miss |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 0.1 | Fixed | 1.050 | 0.112 | 1.056 | 1.130 |
+| 0.1 | Seeded | 1.051 | 0.100 | 1.056 | 1.115 |
+| 0.5 | Fixed | 1.257 | 0.490 | 1.496 | 2.421 |
+| 0.5 | Seeded | 1.256 | 0.493 | 1.514 | 2.456 |
+| 0.9 | Fixed | 1.445 | 0.890 | 5.517 | 45.600 |
+| 0.9 | Seeded | 1.446 | 0.906 | 5.481 | 56.424 |
+
+![Mean lookup probes with the fixed polynomial hash, plotted against load factor](results/figs/probes_fixed.png)
+
+![Mean lookup probes with seeded hashing, plotted against load factor](results/figs/probes_seeded.png)
+
+For A at 90% load, successful lookups took about 1.45 comparisons, near the theoretical reference of 1.45. Misses took about 0.90 comparisons. For B, misses rose sharply as occupied slots formed longer clusters. At 90% load, the fixed and seeded means fell on either side of the 50.50-probe reference. Their across-run standard deviations were 5.90 and 18.56 slots respectively, so a single high-load run can differ substantially from the reference. [Raw probe data](results/probes.csv)
+
+### Corpus word-count timing
+
+The team corpus contains 366,832 word tokens and 10,307 distinct words under the application's ASCII tokenization. We timed the lookups, count updates, and any resizing on fresh tables. Tokenization and validation ran outside the timer. Every run matched independently accumulated word counts.
+
+| Structure | Fixed (ms) | Seeded (ms) |
+| --- | ---: | ---: |
+| A | 24.37 ± 3.01 | 1,088.54 ± 73.65 |
+| B | 19.36 ± 1.86 | 1,065.77 ± 70.41 |
+
+![Mean time in milliseconds to count the corpus in each table and hash mode](results/figs/corpus_time.png)
+
+Seeded hashing took more time on this corpus in both structures. The seeded implementation restarts its pseudorandom generator on every hash call. That cost is part of what we timed. These runs did not isolate how much time the hash itself consumed. [Raw corpus data](results/corpus.csv)
+
+### Seeded replay on the supplied collision workloads
+
+For each workload we created fresh seeded tables with seed 42. The timer covered command parsing, inserts, lookups and creation of the in-memory answers. All 30 runs matched the expected answers and final key counts. These measurements cover a larger timed operation than the corpus benchmark.
+
+| Distinct keys | Commands | A (ms) | B (ms) |
+| ---: | ---: | ---: | ---: |
+| 1,024 | 2,048 | 6.33 ± 0.15 | 5.85 ± 0.12 |
+| 4,096 | 8,192 | 26.49 ± 0.79 | 23.91 ± 0.37 |
+| 8,192 | 16,384 | 54.34 ± 1.13 | 49.44 ± 1.86 |
+
+![Mean seeded replay time in milliseconds by distinct key count](results/figs/seeded_replay.png)
+
+Replay time roughly doubled for both structures from 4,096 to 8,192 keys as the command count doubled. **Fixed-hash replay timings are pending.** A comparison of the two hash modes on the same workload requires those readings. The raw CSV records each input's SHA-256, size, seed, individual timing and verification result. [Raw seeded replay data](results/seeded_replay.csv)
+
+### Reproduce the probe and corpus results
+
+From the repository root in an x64 Native Tools Command Prompt for Visual Studio, with Python and Matplotlib installed:
+
+```bat
+cl /nologo /std:c++17 /EHsc /O2 bench\measure.cpp src\structA\StructureA.cpp /Fe:measure.exe
+measure.exe probes > results\probes.csv
+measure.exe corpus data\corpus.txt > results\corpus.csv
+python bench\plot_measurements.py
+```
+
+The experiment notes record the input seeds, probe definitions, and build commands for GCC and Clang. [Experiment protocol](bench/EXPERIMENTS.md)
+
 ## Q5. How does a random seed affect the chain containing a stored key?
 
 **Member 5 · Adwit Tiwari**
