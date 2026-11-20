@@ -102,3 +102,32 @@ run.exe --structure B --seed 42 --attack tests/collision_4096.txt
 run.exe --structure B --seed 42 --attack tests/collision_8192.txt
 ```
   `
+  ## Run Adwit's benchmarks and graphs
+
+**To regenerate the graphs from saved data on main**, use the following three commands. The first reads `results/probes.csv` and `results/corpus.csv`, the second reads `results/q5_chain_length.csv`, and the third validates the six supplied timing files under `results/replay/`. The Q5 figure is written to `results/q5_chain_length.png`. The other comparison figures are written under `results/figs/`.
+
+```bat
+python bench\plot_measurements.py
+python bench\plot_q5.py
+python bench\plot_replay.py
+```
+
+**To collect fresh probe, corpus and Q5 measurements**, use the benchmark snapshot below. The C++ drivers on main still use the older shared `SeededHash` interface. Commit `69e5f7e` contains the drivers and matching table implementations used for the report. From the main repository root, create a separate checkout once:
+
+```bat
+git worktree add --detach ..\cs203d-measurements 69e5f7e
+cd ..\cs203d-measurements
+```
+
+Run the following in that measurement checkout. The corpus run reads the included `data/corpus.txt`. The three redirections replace the checkout's saved CSVs with the new runs. Subsequent sessions can start directly in that folder.
+
+```bat
+cl /nologo /EHsc /std:c++17 /O2 bench\measure.cpp src\structA\StructureA.cpp /Fe:measure.exe
+cl /nologo /EHsc /std:c++17 /O2 bench\q5_chain_length.cpp src\structA\StructureA.cpp /Fe:q5.exe
+measure.exe probes > results\probes.csv
+measure.exe corpus data\corpus.txt > results\corpus.csv
+q5.exe > results\q5_chain_length.csv
+python bench\plot_measurements.py
+python bench\plot_q5.py
+python bench\plot_replay.py
+```
