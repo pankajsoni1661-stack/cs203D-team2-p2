@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <random>
+#include <vector>
 
 using namespace std;
 
@@ -24,6 +25,13 @@ struct Slot {
 };
 
 class LinearProbingTable {
+private:
+    bool useSeeded;
+    unsigned long long seed;
+    int hashCapacity;
+    mt19937_64 randomGenerator;
+    vector<vector<unsigned long long>> randomValues;
+
 public:
     Slot* table;
     int capacity;
@@ -33,21 +41,19 @@ public:
     long long probes;
     double max_load_factor;
 
-    LinearProbingTable(int init_cap = 16, unsigned long long hash_base = 31, bool use_seeded_hash = false) {
+    LinearProbingTable(int init_cap = 16, unsigned long long hash_base = 31,
+                       bool use_seeded_hash = false, unsigned long long hash_seed = 42) {
         capacity = init_cap;
         num_keys = 0;
         num_tombstones = 0;
         probes = 0;
         max_load_factor = 0.7;
 
-        if (use_seeded_hash) {
-            random_device rd;
-            mt19937_64 gen(rd());
-            uniform_int_distribution<unsigned long long> dist(257, 1000000007ULL);
-            base = dist(gen) | 1ULL;
-        } else {
-            base = hash_base;
-        }
+        base = hash_base;
+        useSeeded = use_seeded_hash;
+        seed = hash_seed;
+        hashCapacity = 0;
+        randomGenerator.seed(seed);
 
         table = new Slot[capacity];
     }
@@ -57,6 +63,32 @@ public:
     }
 
     int hashFunction(const string& key) {
+        if (useSeeded) {
+            // Resizing changes the bucket range, so rebuild the hash tables.
+            // The same seed and capacity always give the same hash function.
+            if (hashCapacity != capacity) {
+                hashCapacity = capacity;
+                randomValues.clear();
+                randomGenerator.seed(seed);
+            }
+
+            // Each character position has its own random value for every byte.
+            uniform_int_distribution<unsigned long long> dist(0, capacity - 1);
+            while (randomValues.size() < key.size()) {
+                vector<unsigned long long> values(256);
+                for (int i = 0; i < 256; i++) {
+                    values[i] = dist(randomGenerator);
+                }
+                randomValues.push_back(values);
+            }
+
+            unsigned long long h = 0;
+            for (size_t i = 0; i < key.size(); i++) {
+                h = (h + randomValues[i][(unsigned char)key[i]]) % capacity;
+            }
+            return h;
+        }
+
         unsigned long long h = 0;
         for (char c : key) {
             h = h * base + (unsigned char)c;
