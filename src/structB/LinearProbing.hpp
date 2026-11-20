@@ -25,7 +25,6 @@ struct Slot {
 };
 
 class LinearProbingTable {
-    // The application owns this object and keeps it alive with the table.
     const SeededHash* seededHash_ = nullptr;
 
 public:
@@ -35,12 +34,14 @@ public:
     int num_tombstones;
     unsigned long long base;
     long long probes;
+    double max_load_factor;
 
     LinearProbingTable(int init_cap = 16, unsigned long long hash_base = 31, bool use_seeded_hash = false) {
         capacity = init_cap;
         num_keys = 0;
         num_tombstones = 0;
         probes = 0;
+        max_load_factor = 0.7;
 
         if (use_seeded_hash) {
             random_device rd;
@@ -94,7 +95,7 @@ public:
     }
 
     void insert(const string& key, int value) {
-        if ((double)(num_keys + num_tombstones + 1) / capacity > 0.7) {
+        if ((double)(num_keys + num_tombstones + 1) / capacity > max_load_factor) {
             resize();
         }
 
