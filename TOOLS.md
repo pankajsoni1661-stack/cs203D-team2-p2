@@ -1,14 +1,14 @@
 
  # Tool assistance for Shubham's work
 
-# Academic & Video References
+### Academic & Video References
 Lecture Material Notes for Hashing(Subhra Mazumdar Mam)
 
 * [Hash Tables: Theory, Implementation, and Universal Hashing](https://youtube.com)
 * [Hashing Tutorial 4 - Universal Hashing](https://youtube.com)
 * [Rolling Hash Function Tutorial (Rabin-Karp)](https://youtube.com)
 
-# AI Tool 
+### AI Tool 
 * **Google Gemini:** Used to clarify C++ syntax (header/source separation, file I/O redirection), review edge-case test designs (tombstone probe-chain preservation and base-31 block-substitution collision strings), and format report documentation. All test code (`oracle.cpp`, `differential_test.cpp`, `invariant_checker.cpp`, `collision_generator.cpp`) was compiled, executed, and verified locally.
 
 * # Tool assistance for Adwit's Q5 contribution
