@@ -1,13 +1,21 @@
 
- References & Tools
+ # Tool assistance for Shubham's work
 
-### Academic & Video References
-* Cormen, T. H., Leiserson, C. E., Rivest, R. L., & Stein, C. (2022). *Introduction to Algorithms* (4th ed.). MIT Press. (Chapter 11: Hash Tables & Universal Hashing).
-* Carter, J. L., & Wegman, M. N. (1979). *Universal classes of hash functions*. Journal of Computer and System Sciences, 18(2), 143–154.
-* Crosby, S. A., & Wallach, D. S. (2003). *Denial of Service via Algorithmic Complexity Attacks*. USENIX Security Symposium.
+# Academic & Video References
+Lecture Material Notes for Hashing(Subhra Mazumdar Mam)
+
 * [Hash Tables: Theory, Implementation, and Universal Hashing](https://youtube.com)
 * [Hashing Tutorial 4 - Universal Hashing](https://youtube.com)
 * [Rolling Hash Function Tutorial (Rabin-Karp)](https://youtube.com)
 
-### AI Tool Disclosure
+# AI Tool Disclosure
 * **Google Gemini:** Used to clarify C++ syntax (header/source separation, file I/O redirection), review edge-case test designs (tombstone probe-chain preservation and base-31 block-substitution collision strings), and format report documentation. All test code (`oracle.cpp`, `differential_test.cpp`, `invariant_checker.cpp`, `collision_generator.cpp`) was compiled, executed, and verified locally.
+
+* # Tool assistance for Adwit's Q5 contribution
+
+The five-day team guide and a Claude conversation helped plan the question and introduced tabulation hashing as a possible design. Codex inspected the shared C++ implementation, wrote and ran the Q5 measurement and plotting scripts, and drafted the Q5 report section and slide from those results. The experiment used the team's position-weighted seeded hash. MSVC built the program and Matplotlib rendered the figure. This entry covers the Q5 contribution only.
+
+## Probe and corpus benchmarks
+
+Codex adapted the earlier measurement driver to the team's tables and Kartikey's configurable load threshold, documented the commands, and verified the probe and corpus modes using the MSVC build.
+
