@@ -64,15 +64,13 @@ public:
 
     int hashFunction(const string& key) {
         if (useSeeded) {
-            // Resizing changes the bucket range, so rebuild the hash tables.
-            // The same seed and capacity always give the same hash function.
+           
             if (hashCapacity != capacity) {
                 hashCapacity = capacity;
                 randomValues.clear();
                 randomGenerator.seed(seed);
             }
 
-            // Each character position has its own random value for every byte.
             uniform_int_distribution<unsigned long long> dist(0, capacity - 1);
             while (randomValues.size() < key.size()) {
                 vector<unsigned long long> values(256);
