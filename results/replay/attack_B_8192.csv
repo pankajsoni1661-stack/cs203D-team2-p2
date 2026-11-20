@@ -1,0 +1,13 @@
+run,structure,hash_mode,seed,replay_ms,final_keys,verification
+1,B,fixed,NA,1355.517000,8192,PASS
+1,B,seeded,42,60.179000,8192,PASS
+2,B,fixed,NA,1352.076000,8192,PASS
+2,B,seeded,42,60.074000,8192,PASS
+3,B,fixed,NA,1339.130000,8192,PASS
+3,B,seeded,42,59.122000,8192,PASS
+4,B,fixed,NA,1334.245000,8192,PASS
+4,B,seeded,42,60.716000,8192,PASS
+5,B,fixed,NA,1344.705000,8192,PASS
+5,B,seeded,42,60.090000,8192,PASS
+mean,B,fixed,NA,1345.134600,NA,PASS
+mean,B,seeded,42,60.036200,NA,PASS
