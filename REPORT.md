@@ -92,6 +92,76 @@ All timing measurements were compiled with `-O2` optimization using `std::chrono
 
 ### Q2 — Deletion Mechanics & Tombstone Accumulation in Open Addressing
 * **Why Naive Deletion Fails:** In Linear Probing, setting a deleted slot directly to `EMPTY` severs the probe chain for any key that collided at or before that index and was placed further down the cluster, causing `get()` to terminate prematurely and return false `NOT_FOUND` results.
+* ### Q2 — Deletion Mechanics & Tombstone Accumulation in Open Addressing
+* **Why Naive Deletion Fails:** In Linear Probing (`src/structB/LinearProbing.hpp`), setting a deleted slot directly to `EMPTY` breaks the contiguous probe sequence for any key that collided at or before that slot and was placed further down the cluster. Subsequent `get()` calls would stop prematurely at the `EMPTY` slot and return false `NOT_FOUND` results even though the target key is still present later in the cluster.
+* **Tombstone Lifecycle:** Marking deleted entries as `TOMBSTONE` preserves probe-chain continuity during `get()` searches while allowing subsequent `insert()` calls to reclaim the first encountered `TOMBSTONE` slot once they verify the key does not already exist further along the cluster.
+* **Tombstone Accumulation & Resizing:** Under heavy insert/delete churn, tombstones accumulate and degrade unsuccessful lookup time (forcing linear scans to traverse stale tombstones before hitting `EMPTY`). Including `num_tombstones` in the load factor threshold (`(num_keys + num_tombstones + 1) / capacity > 0.7`) guarantees periodic table resizing (`resize()`), which rehashes only `OCCUPIED` entries and purges all accumulated tombstones.
+
+---
+
+### Q3 — Amortization & Resizing Overhead
+* **Amortized $O(1)$ Cost:** Doubling table capacity ($M \leftarrow 2M$) in `StructureA::doubleCapacity()` and `LinearProbingTable::resize()` costs $\Theta(N)$ time to rehash all active entries, but occurs only after $\Omega(N)$ insertions since the previous resize. Using the aggregate method across $N$ insertions starting from capacity $M_0 = 16$, total rehashing work is $\sum_{k=0}^{\lfloor \log_2 N \rfloor} 2^k < 2N$, yielding **$O(1)$ amortized insertion cost**.
+* **Load Factor Threshold Trade-off:** Lowering the maximum load factor threshold (e.g., from $\alpha_{\max} = 1.0$ to $0.5$) reduces average probe lengths and cluster sizes, but doubles peak bucket-array memory allocation and triggers resizing spikes earlier during growth.
+
+---
+
+### Q4 — Adversarial Collision Construction & Seeded Hashing Defence
+* **Deterministic Base-31 Collision Construction (`tests/collision_generator.cpp`):**
+  Under fixed polynomial rolling hashing:
+  $$H(S) = \left(\sum_{i=0}^{k-1} c_i \cdot 31^{k-1-i}\right) \bmod 2^{64}$$
+  Consider the two 2-character blocks `"aB"` (`'a' = 97`, `'B' = 66`) and ``"`a"`` (``'`' = 96``, `'a' = 97`):
+  $$H(\text{"aB"}) = 97 \cdot 31 + 66 = 3073, \qquad H(\text{"`a"}) = 96 \cdot 31 + 97 = 3073$$
+  Because both blocks have equal length ($2$) and identical intermediate hash values (`3073`), concatenating $m$ blocks in any binary combination generates $2^m$ distinct strings of length $2m$ that share the **exact same 64-bit hash**. Consequently, all $2^m$ keys map to the exact same bucket index $H(S) \bmod M$ for **every** table size $M$, surviving repeated table doublings and degrading $N$ insertions and lookups from $\Theta(N)$ to $\Theta(N^2)$ worst-case time.
+* **Empirical Attack Impact (`results/replay/attack_*.csv`):**
+  Using `tests/collision_generator.cpp`, we generated workloads of **1,024** ($m=10$), **4,096** ($m=12$), and **8,192** ($m=13$) colliding keys. Under fixed base-31 hashing, replay time escalated quadratically across both structures as all keys collapsed into a single chain/cluster.
+* **Why Seeded Hashing Restores Expected $O(1)$ Time:**
+  When `--seed <S>` is enabled:
+  * **Structure A** uses a Carter–Wegman random linear combination $H_{\text{seed}}(S) = \left(\sum_{i=0}^{k-1} a_i(c_i+1)\right) \bmod (10^9+7)$, drawing random weights $a_i$ from a seeded 64-bit Mersenne Twister (`mt19937_64`).
+  * **Structure B** uses seeded Tabulation Hashing, summing independent random bucket offsets per character position and byte value modulo $M$.
+  Without knowledge of the secret runtime seed, an adversary cannot predict bucket assignments. The collision probability between any two distinct keys drops to $\approx 1/M$, dispersing all $8,192$ adversarial keys uniformly across buckets and restoring expected $O(1)$ operation time.
+
+---
+
+### Q5 — Empirical Maximum Chain Length vs. Theoretical $\Theta(\log N / \log \log N)$ Bound (`bench/q5_chain_length.cpp`)
+* **Figure:** `results/q5_chain_length.png` (`results/q5_chain_length.csv`)
+* **Theoretical Analysis:** Hashing $N$ keys uniformly at random into $M = \Theta(N)$ buckets corresponds to the classic **Balls-into-Bins** model. While the *expected* chain length in any single bucket is $\alpha = N/M = O(1)$, the *maximum* bucket chain length across all $M$ buckets grows asymptotically as:
+  $$L_{\max} = \Theta\left(\frac{\log N}{\log \log N}\right)$$
+* **Empirical Validation:** Measuring maximum bucket chain lengths across increasing $N$ confirms that empirical $L_{\max}$ tracks the $\frac{\log N}{\log \log N}$ curve closely (staying within ~6–10 nodes even for tens of thousands of keys) rather than remaining strictly constant or growing linearly.
+
+---
+
+## 6. How to Reproduce Build, Tests & Benchmarks
+
+### Build & Run Unified Application
+```bash
+g++ -O2 -std=c++17 app/main.cpp src/structA/StructureA.cpp -o run
+./run --structure A < Application_tests/application_commands.in
+./run --structure B --seed 42 --words data/corpus.txt
+./run --structure A --seed 42 --attack tests/collision_8192.txt
+```
+
+### Run Verification & Test Suite
+```bash
+# 1. Invariant Checker (20,000 interleaved operations)
+g++ -O2 -std=c++17 tests/invariant_checker.cpp src/structA/StructureA.cpp -o inv_check
+./inv_check
+
+# 2. Differential Test against Sorted-Array Oracle (100,000 operations)
+g++ -O2 -std=c++17 tests/differential_test.cpp -o diff_test
+./diff_test
+./run --structure A < tests/random_ops.txt > tests/outA.txt
+./run --structure B --seed 42 < tests/random_ops.txt > tests/outB_seeded.txt
+diff -u tests/oracle_out.txt tests/outA.txt
+diff -u tests/oracle_out.txt tests/outB_seeded.txt
+
+# 3. Generate Adversarial Collision Workloads (1,024 / 4,096 / 8,192 keys)
+g++ -O2 -std=c++17 tests/collision_generator.cpp -o collision_gen
+./collision_gen
+```
+
+---
+
+
 
 Q3. Why does linear probing need tombstones?
 
