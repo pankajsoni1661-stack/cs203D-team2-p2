@@ -19,3 +19,7 @@ A counts nodes compared. B counts slots inspected, including the empty slot endi
 ## Corpus timing
 
 Use the team's data/corpus.txt (Emma, Persuasion, and Sense and Sensibility). Match the application's tokenization by lowercasing ASCII letters and splitting at every other byte. Starting from fresh 16-slot tables with the normal resize settings, time only the word-count lookups and updates, including any resizing they trigger. Run all four table/hash combinations five times, with seed 5000 + run in seeded mode. Outside the timer, compare every word frequency and the distinct count against independently accumulated counts. The CSV records total tokens as keys, distinct words as live, and elapsed wall-clock time in seconds.
+
+## Rebuild the figures
+
+From the repository root, run `python bench/plot_measurements.py` with Matplotlib installed. The script reads the two CSVs in results/ and writes fixed-hash probes, seeded-hash probes, and corpus timings to results/figs/. Points and bars show five-run means. Error bars show one sample standard deviation. The recorded run used MSVC 14.50.35717 with /O2 on x64 Windows build 26300, Intel Core i7-14650HX.
