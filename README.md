@@ -38,10 +38,11 @@ This guide covers building and executing all correctness, invariant, and adversa
 Run all commands from the **repository root directory** (`cs203D-team2-p2-main/`).
 
 ### Initial Commands (Windows)
+The 1st command may not be required it is just for folder setup but try it if not works without it.
 ```cmd
-cd cs203D-team2-p2-main_final
+cd cs203D-team2-p2-main
 ```
- 
+ 2
 ```cmd
 g++ -O2 -std=c++17 app/main.cpp src/structA/StructureA.cpp -o run.exe
 ```
