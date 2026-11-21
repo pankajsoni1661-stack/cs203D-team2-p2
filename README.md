@@ -1,3 +1,12 @@
+# CS 203D — Data Structures & Algorithms Mini-Project
+
+* **Project Number:** Project 2
+* **Project Name:** Hashing & Collision Resolution (Separate Chaining vs. Linear Probing & Seeded Hashing Defences)
+* **Team Name:** Team 2 (`cs203D-team2-p2`)
+* **Course:** CS 203D — Data Structures & Algorithms
+
+---
+
 ## 1. Team and contributions
 
 | Member | Roll no. | GitHub | Role (project spec) | Question |
@@ -102,6 +111,67 @@ run.exe --structure B --seed 42 --attack tests/collision_4096.txt
 run.exe --structure B --seed 42 --attack tests/collision_8192.txt
 ```
   `
+# Run the Application in Command Prompt (CMD)
+
+Run these commands from your project folder. Compilation requires g++ to be installed and available in PATH.
+
+## 1. Open your project folder
+
+Replace `YOUR_PROJECT_FOLDER_PATH` with the actual path to the folder containing `app`, `src`, `data` and `tests`.
+
+```cmd
+cd /d "YOUR_PROJECT_FOLDER_PATH"
+```
+
+## 2. Compile the application
+
+```cmd
+g++ -std=c++17 -O2 app/main.cpp src/structA/StructureA.cpp -o hash_app.exe
+```
+
+## 3. Run the word frequency counter
+
+Structure A:
+
+```cmd
+hash_app.exe --structure A --words data/corpus.txt
+```
+
+Structure B:
+
+```cmd
+hash_app.exe --structure B --words data/corpus.txt
+```
+
+These commands print each word and its frequency.
+
+## 4. Check that fixed and seeded word counts match
+
+```cmd
+hash_app.exe --structure A --seed 42 --compare-words data/corpus.txt
+hash_app.exe --structure B --seed 42 --compare-words data/corpus.txt
+```
+
+## 5. Generate attack inputs once
+
+```cmd
+g++ -std=c++17 -O2 tests/collision_generator.cpp -o collision_generator.exe
+collision_generator.exe
+```
+
+This creates input files containing 1,024, 4,096 and 8,192 colliding keys in the `tests` folder.
+
+## 6. Run attack mode
+
+```cmd
+hash_app.exe --structure A --seed 42 --attack tests/collision_8192.txt
+hash_app.exe --structure B --seed 42 --attack tests/collision_8192.txt
+```
+
+Each attack command runs fixed and seeded hashing five times each, verifies that their answers and final states match, and prints the timings and their means.
+
+Replace `8192` with `1024` or `4096` to run the smaller attack inputs.
+
   ## Run Adwit's benchmarks and graphs
 
 **To regenerate the graphs from saved data on main**, use the following three commands. The first reads `results/probes.csv` and `results/corpus.csv`, the second reads `results/q5_chain_length.csv`, and the third validates the six supplied timing files under `results/replay/`. The Q5 figure is written to `results/q5_chain_length.png`. The other comparison figures are written under `results/figs/`.
@@ -131,3 +201,41 @@ python bench\plot_measurements.py
 python bench\plot_q5.py
 python bench\plot_replay.py
 ```
+
+## How to run the program on a test file
+
+### Build & Run Command
+```cmd
+g++ -O2 -std=c++17 app/main.cpp src/structA/StructureA.cpp -o run.exe
+run.exe --structure A < sample_test.txt
+```
+
+### Expected Output
+35
+NOT_FOUND
+2
+NOT_FOUND
+1
+NOT_FOUND
+
+
+## Known Limitations
+
+1. **String Keys & Signed 32-Bit Integer Values Only:**
+   * Both data structures store `std::string` keys and signed 32-bit `int` values (`INT_MAX` ceiling). Keys cannot contain whitespace characters (spaces, tabs, or newlines) because command parsing relies on whitespace-delimited `std::istream >>` extraction, and values exceeding `2,147,483,647` (`INT_MAX`) trigger an overflow guard in word-counting mode.
+
+2. **No Automatic Table Shrinking (`shrinkCapacity`):**
+   * Both **Structure A** (`doubleCapacity`) and **Structure B** (`resize`) double their bucket/slot arrays when the load factor exceeds `maxLoad` (`1.0` and `0.7`, respectively), but neither implementation shrinks the table when a large fraction of keys are deleted (`D`). Memory allocated during peak load remains reserved until the table is destroyed.
+
+3. **Memory & Per-Call Overhead in Seeded Hashing:**
+   * **Structure A (`seededHash`):** Re-initializes `std::mt19937_64` on every hash call, adding a small constant CPU overhead per operation compared to the fixed polynomial loop (`hash * 31 + ch`).
+   * **Structure B (`Tabulation Hashing`):** Caches a 256-entry lookup table per character position (`randomValues`). While fast in $O(1)$ per character, hashing unusually long keys (e.g., strings of thousands of characters) allocates $256 \times \text{key.length()} \times 8$ bytes of lookup memory.
+
+4. **Tombstone Accumulation Under Sustained Churn (Structure B):**
+   * In `LinearProbingTable`, heavy cycles of repeated insertions and deletions without net growth accumulate `TOMBSTONE` slots. Although tombstones are counted toward the resize trigger (`(num_keys + num_tombstones + 1) / capacity > 0.7`) and purged upon resizing, unsuccessful `get()` queries still scan across all tombstones in a cluster prior to a resize.
+
+5. **Non-Thread-Safe & Non-Copyable Structures:**
+   * Neither structure uses locks or atomic operations, so concurrent access from multiple threads is not supported. Additionally, copy constructors and copy assignment operators are explicitly disabled (`= delete`) in `StructureA` (and shallow-pointer unsafe if copied in `LinearProbingTable`) to prevent double-free memory errors.
+
+
+
