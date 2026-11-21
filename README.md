@@ -21,7 +21,7 @@ The C++ application stores string keys and integer values using either separate 
 
 <br>
 
-## Requirements
+## 2. Requirements
 
 * **Languages:** C++17 (data structures, CLI application, tests, and benchmarks) and Python 3 (graph plotting)
 * **C++ Compiler:** `g++` (GCC 9.0+ or MinGW-w64) supporting `-std=c++17` and `-O2`
