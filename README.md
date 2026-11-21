@@ -19,7 +19,7 @@
 
 The C++ application stores string keys and integer values using either separate chaining (A) or linear probing (B). Both implementations support insertion, updates, lookup, deletion and a count of distinct keys. The word counter uses the same tables to count words in a text file.\
 
-
+<br>
 ## Requirements
 
 * **Languages:** C++17 (data structures, CLI application, tests, and benchmarks) and Python 3 (graph plotting)
