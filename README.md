@@ -15,211 +15,42 @@
 | Kartikey Gupta | 250003045 | `kartikey357` | Structure B owner | Q2 |
 | Pankaj Soni | 250004028 | `pankajsoni1661-stack` | Application owner | Q3 |
 | Shubham Poddar | 250004032 | `subham2352007-eng` | Test owner (also builds the worst-case inputs, as the spec asks of a five-member team) | Q4 |
-| Adwit Tiwari | 250004004 | `Adwit-webdev` | Measurement owner | Q5 |# CS203D Project 2 · Hash tables and word counts
+| Adwit Tiwari | 250004004 | `Adwit-webdev` | Measurement owner | Q5 |
 
-The C++ application stores string keys and integer values using either separate chaining (A) or linear probing (B). Both implementations support insertion, updates, lookup, deletion and a count of distinct keys. The word counter uses the same tables to count words in a text file.\
-
-<br>
-
-## 2. Requirements
-
-* **Languages:** C++17 (data structures, CLI application, tests, and benchmarks) and Python 3 (graph plotting)
-* **C++ Compiler:** `g++` (GCC 9.0+ or MinGW-w64) supporting `-std=c++17` and `-O2`
-* **Python Interpreter:** Python 3.8+ with `matplotlib` (`pip install matplotlib`) for generating plots in `results/figs/ 
-
-## # Testing & Verification Commands (`tests/`)
-
-This guide covers building and executing all correctness, invariant, and adversarial collision tests for **Structure A (Separate Chaining)** and **Structure B (Linear Probing)** in both **fixed base-31** and **seeded** hash modes.
-
----
-
-## 1. Prerequisites & Build Unified Application
-
-Run all commands from the **repository root directory** (`cs203D-team2-p2-main/`).
-
-### Initial Commands (Windows)
-The 1st command may not be required it is just for folder setup but try it if not works without it.
-```cmd
-cd cs203D-team2-p2-main
-```
- 2
-```cmd
-g++ -O2 -std=c++17 app/main.cpp src/structA/StructureA.cpp -o run.exe
-```
+The C++ application stores string keys and integer values using either separate chaining (A) or linear probing (B). Both implementations support insertion, updates, lookup, deletion and a count of distinct keys. The word counter uses the same tables to count words in a text file.
 
 
-## 2. Internal Invariant Checker (`tests/invariant_checker.cpp`)
+## Build and run
 
-Stress-tests **Structure A** and **Structure B** (both fixed and seeded) across **20,000 interleaved operations** (`insert`, `remove`, `get`), verifying internal table invariants every 500 operations.
-
-### Windows (Command Prompt)
-```cmd
-g++ -O2 -std=c++17 tests/invariant_checker.cpp src/structA/StructureA.cpp -o tests/inv_check.exe
-tests\inv_check.exe
-```
-
-**Expected Output:**
-```text
-[PASS] All invariants held for Structure A & B (fixed & seeded) across 20000 operations!
-```
-
----
-
-## 3. Differential Test Against Reference Oracle (`tests/differential_test.cpp` & `tests/oracle.cpp`)
-
-Generates **100,000 randomized operations** (`tests/random_ops.txt`) along with ground-truth outputs (`tests/oracle_out.txt`) using a sorted-array binary-search oracle (`seed = 42`), then verifies zero byte-level discrepancies across all four configurations.
-
-### Windows (Command Prompt)
-```cmd
-:: Step 1: Compile and generate 100,000 operations + oracle expected output
-g++ -O2 -std=c++17 tests/differential_test.cpp -o tests/diff_test.exe
-tests\diff_test.exe
-
-:: Step 2: Run Structure A and Structure B (Fixed & Seeded)
-run.exe --structure A < tests/random_ops.txt > tests/outA.txt
-run.exe --structure A --seed 42 < tests/random_ops.txt > tests/outA_seeded.txt
-run.exe --structure B < tests/random_ops.txt > tests/outB.txt
-run.exe --structure B --seed 42 < tests/random_ops.txt > tests/outB_seeded.txt
-
-:: Step 3: Compare against Oracle ground truth
-fc tests\oracle_out.txt tests\outA.txt
-fc tests\oracle_out.txt tests\outA_seeded.txt
-fc tests\oracle_out.txt tests\outB.txt
-fc tests\oracle_out.txt tests\outB_seeded.txt
-```
-
-**Expected Output:**
-* Windows: `FC: no differences encountered` for all four files.
-
----
-
-## 4. Adversarial Collision Attack Generator & Timing Replay (`tests/collision_generator.cpp`)
-
-Generates three worst-case base-31 polynomial hash collision workloads (`1,024`, `4,096`, and `8,192` distinct colliding keys using `"aB"` / ``"`a"`` block substitution) and runs 5-trial timing benchmarks comparing **fixed base-31** vs. **seeded** hashing.
-
-### Windows (Command Prompt)
-```cmd
-:: Step 1: Generate adversarial collision files
-g++ -O2 -std=c++17 tests/collision_generator.cpp -o tests/collision_gen.exe
-tests\collision_gen.exe
-
-:: Step 2: Run 5-trial attack timing replay (CSV output)
-run.exe --structure A --seed 42 --attack tests/collision_1024.txt
-run.exe --structure A --seed 42 --attack tests/collision_4096.txt
-run.exe --structure A --seed 42 --attack tests/collision_8192.txt
-
-run.exe --structure B --seed 42 --attack tests/collision_1024.txt
-run.exe --structure B --seed 42 --attack tests/collision_4096.txt
-run.exe --structure B --seed 42 --attack tests/collision_8192.txt
-```
-  `
-# Run the Application in Command Prompt (CMD)
-
-Run these commands from your project folder. Compilation requires g++ to be installed and available in PATH.
-
-## 1. Open your project folder
-
-Replace `YOUR_PROJECT_FOLDER_PATH` with the actual path to the folder containing `app`, `src`, `data` and `tests`.
-
-```cmd
-cd /d "YOUR_PROJECT_FOLDER_PATH"
-```
-
-## 2. Compile the application
-
-```cmd
-g++ -std=c++17 -O2 app/main.cpp src/structA/StructureA.cpp -o hash_app.exe
-```
-
-## 3. Run the word frequency counter
-
-Structure A:
-
-```cmd
-hash_app.exe --structure A --words data/corpus.txt
-```
-
-Structure B:
-
-```cmd
-hash_app.exe --structure B --words data/corpus.txt
-```
-
-These commands print each word and its frequency.
-
-## 4. Check that fixed and seeded word counts match
-
-```cmd
-hash_app.exe --structure A --seed 42 --compare-words data/corpus.txt
-hash_app.exe --structure B --seed 42 --compare-words data/corpus.txt
-```
-
-## 5. Generate attack inputs once
-
-```cmd
-g++ -std=c++17 -O2 tests/collision_generator.cpp -o collision_generator.exe
-collision_generator.exe
-```
-
-This creates input files containing 1,024, 4,096 and 8,192 colliding keys in the `tests` folder.
-
-## 6. Run attack mode
-
-```cmd
-hash_app.exe --structure A --seed 42 --attack tests/collision_8192.txt
-hash_app.exe --structure B --seed 42 --attack tests/collision_8192.txt
-```
-
-Each attack command runs fixed and seeded hashing five times each, verifies that their answers and final states match, and prints the timings and their means.
-
-Replace `8192` with `1024` or `4096` to run the smaller attack inputs.
-
-  ## Run Adwit's benchmarks and graphs
-
-**To regenerate the graphs from saved data on main**, use the following three commands. The first reads `results/probes.csv` and `results/corpus.csv`, the second reads `results/q5_chain_length.csv`, and the third validates the six supplied timing files under `results/replay/`. The Q5 figure is written to `results/q5_chain_length.png`. The other comparison figures are written under `results/figs/`.
+From the repository root, use a C++17 compiler, Python 3.9 or newer and Matplotlib. Install the plotting dependency with `python -m pip install matplotlib`. On Windows use an x64 Native Tools Command Prompt for MSVC. On Linux or macOS use a shell with g++ available.
 
 ```bat
-python bench\plot_measurements.py
-python bench\plot_q5.py
-python bench\plot_replay.py
+cl /nologo /EHsc /std:c++17 /O2 app\main.cpp src\structA\StructureA.cpp /Fe:run.exe
+run.exe --structure A < Application_tests\application_commands.in
+run.exe --structure B --seed 42 --compare-words data\corpus.txt
+run.exe --structure A < tests\demo_1000000.in
 ```
 
-**To collect fresh probe, corpus and Q5 measurements**, use the benchmark snapshot below. The C++ drivers on main still use the older shared `SeededHash` interface. Commit `69e5f7e` contains the drivers and matching table implementations used for the report. From the main repository root, create a separate checkout once:
+The command fixture prints `1`, `-1`, then `NOT_FOUND` on separate lines. The demo prints `1000000`, `0`, `499999`, and `999999`. Use `--structure B` to repeat either command with linear probing. For GCC build the same application with `g++ -std=c++17 -O2 app/main.cpp src/structA/StructureA.cpp -o run` and invoke `./run`.
+
+## Run the full suite and reproduce figures
 
 ```bat
-git worktree add --detach ..\cs203d-measurements 69e5f7e
-cd ..\cs203d-measurements
+python tests/run_suite.py --msvc --scale --bench
 ```
 
-Run the following in that measurement checkout. The corpus run reads the included `data/corpus.txt`. The three redirections replace the checkout's saved CSVs with the new runs. Subsequent sessions can start directly in that folder.
+With g++ use `python3 tests/run_suite.py --scale --bench`. The suite compiles from current sources in a temporary directory. It runs A and B unit tests, invariants, the command and word fixtures, the standalone oracle, 100,000 random operations and the supplied million-key demonstration. Both structures are checked in fixed and seeded mode. The `--scale` flag adds the 3,501,003-command independent oracle check. The `--bench` flag recollects probe, corpus and Q5 data and redraws their figures and the historical replay comparison. Fresh CSVs replace the corresponding files in `results/`.
+
+To redraw figures directly from the checked-in data:
 
 ```bat
-cl /nologo /EHsc /std:c++17 /O2 bench\measure.cpp src\structA\StructureA.cpp /Fe:measure.exe
-cl /nologo /EHsc /std:c++17 /O2 bench\q5_chain_length.cpp src\structA\StructureA.cpp /Fe:q5.exe
-measure.exe probes > results\probes.csv
-measure.exe corpus data\corpus.txt > results\corpus.csv
-q5.exe > results\q5_chain_length.csv
-python bench\plot_measurements.py
-python bench\plot_q5.py
-python bench\plot_replay.py
+python bench/plot_measurements.py
+python bench/plot_q5.py
+python bench/plot_replay.py
+python bench/plot_seeded_replay.py
 ```
 
-## How to run the program on a test file
-
-### Build & Run Command
-```cmd
-g++ -O2 -std=c++17 app/main.cpp src/structA/StructureA.cpp -o run.exe
-run.exe --structure A < sample_test.txt
-```
-
-### Expected Output
-35
-NOT_FOUND
-2
-NOT_FOUND
-1
-NOT_FOUND
-
+[Measurement commands and definitions](bench/EXPERIMENTS.md) · [Q5 protocol](bench/SEEDED_HASH_NOTES.md) · [Report](REPORT.pdf) · [Slides](docs/slides.pdf) · [Tool disclosures](TOOLS.md)
 
 ## Known Limitations
 
@@ -229,15 +60,6 @@ NOT_FOUND
 2. **No Automatic Table Shrinking (`shrinkCapacity`):**
    * Both **Structure A** (`doubleCapacity`) and **Structure B** (`resize`) double their bucket/slot arrays when the load factor exceeds `maxLoad` (`1.0` and `0.7`, respectively), but neither implementation shrinks the table when a large fraction of keys are deleted (`D`). Memory allocated during peak load remains reserved until the table is destroyed.
 
-3. **Memory & Per-Call Overhead in Seeded Hashing:**
-   * **Structure A (`seededHash`):** Re-initializes `std::mt19937_64` on every hash call, adding a small constant CPU overhead per operation compared to the fixed polynomial loop (`hash * 31 + ch`).
-   * **Structure B (`Tabulation Hashing`):** Caches a 256-entry lookup table per character position (`randomValues`). While fast in $O(1)$ per character, hashing unusually long keys (e.g., strings of thousands of characters) allocates $256 \times \text{key.length()} \times 8$ bytes of lookup memory.
+3. **Seeded lookup cost.** Both tables regenerate position coefficients from the seed on each hash call.
 
-4. **Tombstone Accumulation Under Sustained Churn (Structure B):**
-   * In `LinearProbingTable`, heavy cycles of repeated insertions and deletions without net growth accumulate `TOMBSTONE` slots. Although tombstones are counted toward the resize trigger (`(num_keys + num_tombstones + 1) / capacity > 0.7`) and purged upon resizing, unsuccessful `get()` queries still scan across all tombstones in a cluster prior to a resize.
-
-5. **Non-Thread-Safe & Non-Copyable Structures:**
-   * Neither structure uses locks or atomic operations, so concurrent access from multiple threads is not supported. Additionally, copy constructors and copy assignment operators are explicitly disabled (`= delete`) in `StructureA` (and shallow-pointer unsafe if copied in `LinearProbingTable`) to prevent double-free memory errors.
-
-
-
+4. **Tombstones.** Deletion leaves tombstones in B until rebuilding clears them. Tombstones count toward B's resize threshold.

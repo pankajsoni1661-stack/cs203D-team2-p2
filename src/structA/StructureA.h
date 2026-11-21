@@ -23,8 +23,6 @@ private:
     bool useSeeded;
     unsigned long long seed;
 
-    unsigned long long polynomialHash(const string& key) const;
-    unsigned long long seededHash(const string& key) const;
     unsigned long long hashKey(const string& key) const;
 
     void doubleCapacity();

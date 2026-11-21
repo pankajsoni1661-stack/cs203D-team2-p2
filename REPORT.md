@@ -3,7 +3,7 @@
 **CS 203D · Project 2 · Team 2 (`cs203D-team2-p2`)**
 Structure A: separate chaining · Structure B: linear probing with tombstones
 
-This report describes the code in `src/`, `app/`, `tests/`, `bench/` and `results/` as supplied in the two project archives (`cs203D-team2-p2-main-final` and `cs203D-team2-p2-main`). Their C++ sources are identical apart from comments. Where a number comes from the team's recorded CSV files it is marked *recorded*. Where it comes from a re-run done while assembling this report it is marked *re-run* and its machine is given. The two kinds are never mixed in one cell.
+The probe, corpus, Q5 and seeded replay results were collected with the shared hash implementation in this repository. The earlier four-way replay CSVs are preserved as historical measurements and identified separately in section 6.4.
 
 ---
 
@@ -24,12 +24,12 @@ The team has five members, so Q6 is not required.
 | Member | Main files | What they contain |
 | --- | --- | --- |
 | Ritik | `src/structA/StructureA.h`, `StructureA.cpp` | Separate chaining. Fixed base-31 hash, seeded hash, doubling resize, deletion, probe counting, `loadFactor()`, `checkInvariants()`. |
-| Kartikey | `src/structB/LinearProbing.hpp`, `Structure_B.cpp`, `tests/test_StructB.cpp` | Linear probing with `EMPTY/OCCUPIED/TOMBSTONE` slots, a configurable `max_load_factor`, resize that clears tombstones, its own seeded hash, five unit tests. |
+| Kartikey | `src/structB/LinearProbing.hpp`, `Structure_B.cpp`, `tests/test_StructB.cpp` | Linear probing with `EMPTY/OCCUPIED/TOMBSTONE` slots, a configurable `max_load_factor`, resize that clears tombstones, the shared seeded hash, five unit tests. |
 | Pankaj | `app/main.cpp`, `Application_tests/` | The `--structure A\|B` entry point, the `I/G/D/N` command mode, the word-frequency counter (`--words`, `--compare-words`), the attack replay (`--attack`), four input/expected-output fixtures. |
 | Shubham | `tests/oracle.cpp`, `differential_test.cpp`, `invariant_checker.cpp`, `collision_generator.cpp` | Sorted-array oracle, 10⁵-operation differential test, invariant checker for both tables, block-substitution collision files of 1,024 / 4,096 / 8,192 keys. |
 | Adwit | `bench/` (`measure.cpp`, `q5_chain_length.cpp`, plotting scripts, `EXPERIMENTS.md`, `SEEDED_HASH_NOTES.md`), `results/` | Probe, corpus and replay measurements and every figure in section 6. |
 
-*Commit links.* The archives contain no `.git` history, so per-member commit links cannot be generated from them. The repository is `github.com/pankajsoni1661-stack/cs203D-team2-p2`; the README links one commit, [`69e5f7e`](https://github.com/pankajsoni1661-stack/cs203D-team2-p2/blob/69e5f7e/REPORT.md#measurements), the measurement snapshot. **[Team: add each member's main commit links here before export.]**
+**Selected contributions.** [Ritik · chaining](https://github.com/pankajsoni1661-stack/cs203D-team2-p2/commit/f83fc57846a19b710170549ceaf4d568176e79e9), [Kartikey · probing](https://github.com/pankajsoni1661-stack/cs203D-team2-p2/commit/62e8b3d3e369b75a1cdb62a034e613fb98be7e68), [Pankaj · application](https://github.com/pankajsoni1661-stack/cs203D-team2-p2/commit/11af590235f178bcbb8b83dac337e81db23985db), [Shubham · testing](https://github.com/pankajsoni1661-stack/cs203D-team2-p2/commit/71b4267228eaea62c0f914cf252cdefe8802df2c), [Adwit · measurements](https://github.com/pankajsoni1661-stack/cs203D-team2-p2/commit/69e5f7eb24d4cddfa54aca738b9cb4954dca7c49).
 
 *Tool use* is declared in `TOOLS.md` (see section 9 for what that file still needs).
 
@@ -126,9 +126,7 @@ A pays for a heap allocation and a pointer per key, and a chain walk is pointer-
 
 The **fixed** hash is the same base-31 polynomial as Structure A, reduced `% capacity`.
 
-The **seeded** hash is different from Structure A's. It keeps a table of random values, one entry for every (character position, byte value) pair, each uniform in `[0, capacity−1]`, drawn from `mt19937_64(seed)`. The hash is the sum of the entries picked by the key's bytes, taken mod `capacity`. The table is regenerated whenever `capacity` changes, so after a resize the function changes, which is consistent because every live key is re-inserted. Each hash is a handful of table lookups, so it is cheap.
-
-> **Note.** The project spec says Structure B uses "the same hash function" as Structure A. That holds for the fixed hash. The seeded hashes of A and B are two different randomised functions (A: position-weighted sum mod 1,000,000,007; B: per-position tabulation mod capacity). Both defend against the attack, but a timing comparison between A-seeded and B-seeded also compares two different hash implementations.
+Both structures call the same functions in `src/string_hash.hpp`. For equal keys, seeds, base and capacity, both start from the same bucket index. The seeded mode uses the position-weighted hash in section 3.2. Resizing changes the reduction modulo capacity.
 
 ### 4.3 Complexity
 
@@ -145,7 +143,7 @@ Expected cost is O(1) per operation at a bounded load factor, but the constant g
 
 * **High load.** B cannot be run near full: at α = 0.9 an unsuccessful search averages 45.6 probes against A's 0.89 (section 6). Its default cap is 0.7. A works at α = 1.
 * **Deletion.** A frees a node at once. B leaves a tombstone that costs probe time and counts towards load until the next resize.
-* **Memory behaviour.** B keeps all slots in one array and A allocates a node per key (section 3.5). In the 10⁶-key check of section 5 and in the corpus run, B was the faster structure with the fixed hash.
+* **Memory behaviour.** B keeps all slots in one array and A allocates a node per key (section 3.5). Section 6 compares the measured corpus timings.
 * **API.** B's `get` is not `const` because it updates the `probes` counter, and its capacity is an `int`, so it cannot exceed 2³¹−1 slots. The 10⁶-key run needs 2,097,152 slots, well inside the limit.
 
 ---
@@ -165,32 +163,14 @@ Expected cost is O(1) per operation at a bounded load factor, but the constant g
 
 ### 5.2 Results
 
-All of the following were re-run for this report on Linux (g++ 13.3, `-O2`, C++17). They were built from the supplied sources with `g++ -std=c++17 -O2 app/main.cpp src/structA/StructureA.cpp` for the application.
+The final Windows test suite passed for units A and B, 20,000 invariant-test operations and all application fixtures in both structures and hash modes. The standalone oracle and all four application configurations agreed on 100,000 generated operations.
 
-| Check | Result |
-| --- | --- |
-| Unit tests for B (5 tests) | all pass |
-| Invariant checker, 20,000 ops × 4 tables | all invariants held |
-| Application fixtures (`commands`, `edge_cases`, `resize`), A and B, fixed and `--seed 42` | 12 of 12 match their `.expected` files |
-| Word-count fixture, A and B | both match |
-| Differential test, 100,000 ops (35,080 `I`, 34,716 `D`, 25,268 `G`, 4,936 `N`; 47,680 expected output lines), A and B, each with fixed, `--seed 42` and `--seed 7` | 6 of 6 match the oracle line for line |
-| Re-generated `oracle_out.txt` vs the stored copy | identical |
-| Team's recorded outputs `outA.txt`, `outA_seeded.txt`, `outB.txt`, `outB_seeded.txt` vs `oracle_out.txt` | all four identical (ignoring line endings) |
-| Attack replays, 1,024 / 4,096 / 8,192 keys, 5 runs each, both modes, both structures | every recorded run is `PASS` with the expected final key count (60 of 60); re-run on Linux also `PASS` |
-| **Scale check, 10⁶ keys** (see below) | all four modes match |
+**Million-key scale.** All four configurations matched the independent Python answers for 3,501,003 commands. Seed 20261121 determines the distinct printable keys and shuffled lookup order. The script checks updates to the live count across one million inserts, half a million deletes, subsequent lookups and repeated deletes. The separate presentation input inserts key0 through key999999 and then checks the count and three stored values.
 
-**Scale check.** The project states a scale of one million keys, but the team's tests top out at a few thousand keys (the differential test uses a 500-key pool, the attack files at most 8,192 keys, the corpus 10,307 distinct words). A script, `tests/scale_test_gen.py` (seed 20261121), generates 3,501,003 commands: 1,000,000 inserts of distinct random printable keys of length 8–16, `N`, 1,000,000 hits in shuffled order, 500,000 deletes, `N`, 1,000,000 lookups of which half are now missing, 1,000 deletes of already-deleted keys, `N`. The expected answers come from a Python `dict`, which the project allows in tests. Structure A and Structure B both pass in fixed and seeded mode. Wall-clock time for the whole run, including parsing and output, on a 2-vCPU Intel Xeon at 2.1 GHz with g++ 13.3 `-O2` (*re-run*):
+### 5.3 Defects found during review
 
-| | A fixed | A seeded | B fixed | B seeded |
-| --- | ---: | ---: | ---: | ---: |
-| 3.5 M commands (s) | 3.3 | 8.4 | 3.0 | 3.3 |
+The old benchmark passed a removed hash object to both constructors. Both drivers now build with the current constructors. Review also found that the two seeded implementations could assign different initial slots to the same input. Both now use one helper. Dedicated A tests cover head, middle and tail removal, absent keys, updates, probe-chain integrity and values surviving repeated resizes. The oracle comparison found no output mismatch in this run.
 
-This is a single run per cell, so treat it as a correctness result and a rough size guide, not a benchmark.
-
-### 5.3 Gaps and bugs
-
-* **No Structure A unit-test file.** The spec gives the Structure A owner "Structure A and its unit tests". The repository has `tests/test_StructB.cpp` but no `tests/test_StructA.cpp`. Structure A is covered by the differential test, the invariant checker, the fixtures and the scale check, but not by dedicated unit tests for chain positions, resize and update. **[Team: add `tests/test_StructA.cpp`.]**
-* **Bugs the tests found.** The archives contain no log of defects caught by the oracle, the differential test or the invariant checker. **[Team: list them here, with the commit that fixed each.]** The spec asks for this.
 * **Differential test scale.** With a 500-key pool the tables stay small (A reaches 512 buckets, B 1,024 slots), so resize is exercised but only at small sizes. The scale check above covers the large end.
 
 ---
@@ -201,7 +181,7 @@ This is a single run per cell, so treat it as a correctness result and a rough s
 
 *Recorded* probe and corpus measurements: MSVC 14.50.35717, C++17, `/O2`, x64 Windows build 26300, Intel Core i7-14650HX. Each plotted point or bar is a mean of five runs, with error bars of one sample standard deviation.
 *Recorded* attack replays: machine, compiler and flags were not recorded.
-*Re-run* checks in this report: Intel Xeon 2.1 GHz, 2 vCPUs, Ubuntu 24.04, g++ 13.3, `-O2`.
+Final correctness and scale checks used the same Windows toolchain as the probe and corpus runs.
 
 **Probe definitions.** For A, one probe is one node comparison; an empty bucket costs 0. For B, one probe is one slot inspected, including the empty slot that ends an unsuccessful search. For each of five runs and nine target loads (0.1 to 0.9), fresh 4,096-slot tables are built with no deletions, with floor(4,096 × load) distinct random 12-byte printable keys. Every stored key is looked up once, and the same number of absent 13-byte keys is looked up. A and B receive identical keys in both hash modes. B's `max_load_factor` is raised to 0.9 for this benchmark only, so that it does not resize while being filled.
 
@@ -248,34 +228,22 @@ Seeded hashing gives the same picture (*recorded*, five-run means):
 
 ### 6.3 Corpus word-count timing
 
-The team corpus (Emma, Persuasion, Sense and Sensibility; 2,026,382 bytes) contains 366,832 word tokens and 10,307 distinct words under the application's tokenisation; both figures were re-counted independently for this report and match. The timer covers the lookups, count updates and any resizing, on fresh 16-slot tables. Tokenisation and validation run outside the timer. Every run matched independently accumulated counts. Final α is 0.629 in both structures (10,307 live keys in 16,384 slots).
+The team corpus (Emma, Persuasion, Sense and Sensibility) contains 366,832 word tokens and 10,307 distinct words under the application's tokenisation; both figures were re-counted independently for this report and match. The timer covers the lookups, count updates and any resizing, on fresh 16-slot tables. Tokenisation and validation run outside the timer. Every run matched independently accumulated counts. Final α is 0.629 in both structures (10,307 live keys in 16,384 slots).
 
 *Recorded* (MSVC, i7-14650HX), mean ± sample standard deviation over five runs, in milliseconds:
 
 | Structure | Fixed | Seeded |
 | --- | ---: | ---: |
-| A | 24.37 ± 3.01 | 1,088.54 ± 73.65 |
-| B | 19.36 ± 1.86 | 1,065.77 ± 70.41 |
+| A | 11.55 ± 0.11 | 505.93 ± 3.00 |
+| B | 10.08 ± 0.17 | 495.12 ± 7.06 |
 
 ![Mean time in milliseconds to count the corpus in each table and hash mode](results/figs/corpus_time.png)
 
-**Important provenance note on the seeded-B figure.** The benchmark driver that produced `probes.csv` and `corpus.csv` passes one shared `SeededHash` object to both tables (`StructureA a(hash, …)` and `LinearProbingTable b(…, hash)`). That driver does not compile against the final sources, where each structure has its own seeded hash (the README points to commit `69e5f7e` for the snapshot that built it). The B-seeded corpus figure of 1,065.77 ms therefore measures B with the *old, shared, expensive* seeded hash, not the final B of section 4.2.
-
-To check this, the driver was ported to the final API (seeds, key generation and CSV format unchanged) and re-run on the final sources. Two things came out:
-
-* The ported driver reproduces the team's **fixed-hash probe rows exactly** (all 36 cells, 9 loads × 2 structures × hit/miss), every **A-seeded probe row exactly**, and the **Q5 CSV byte for byte**. So the recorded probe data for A and the Q5 data describe the final Structure A faithfully.
-* The corpus timings with the final sources (*re-run*, Linux g++ 13.3 `-O2`, five runs, mean ± SD in ms):
-
-| Structure | Fixed | Seeded |
-| --- | ---: | ---: |
-| A | 12.10 ± 0.28 | 632.06 ± 11.24 |
-| B | 11.50 ± 0.02 | 17.54 ± 1.10 |
-
-Absolute times differ from the recorded ones because the machine and compiler differ. The shape is what matters. With the final sources, **A's seeded hash makes the corpus run about 52 times slower** (632 vs 12.1 ms) because `StructureA::seededHash` builds an `mt19937_64` on every call, while **the final B's seeded hash costs only about 1.5 times the fixed one** (17.5 vs 11.5 ms). The sentence "seeded hashing took more time in both structures" is true of the recorded data but is not a property of Structure B as finally written. The B-seeded probe means also move a little with the final B (at α = 0.9: 5.97 hits and 54.5 misses, against 5.48 and 56.4 recorded), within the run-to-run spread. **[Team: ideally re-run `measure corpus` with the ported driver on the Windows machine and replace the B-seeded figure.]**
+Both tables draw their coefficients from the same per-call generator. The seeded results include that generator cost. All word frequencies were checked outside the timed loop.
 
 ### 6.4 Running time under attack
 
-Each workload has one insert and one lookup per distinct key. The replay timer covers command parsing, table operations and building the in-memory answers. Seeded runs use seed 42. The table gives mean milliseconds of five numbered runs (*recorded*; machine not recorded). All 60 runs were `PASS`.
+The following historical four-way replay was supplied with the project. Its compiler, host and source revision were not recorded. Every CSV row passed the recorded checks. The final-build seeded measurements appear below.
 
 | Distinct keys | Commands | A fixed | A seeded | B fixed | B seeded |
 | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -285,24 +253,9 @@ Each workload has one insert and one lookup per distinct key. The replay timer c
 
 ![Fixed and seeded mean replay times for both structures, with sample standard deviations](results/figs/replay_comparison.png)
 
-*Re-run* on the Linux machine, same attack files, five runs, mean in milliseconds:
+**Final shared-hash build.** The three workload SHA-256 digests match the original seeded dataset. Five fresh runs per structure and size used seed 42 and verified every answer and final count. Average seeded replay times in milliseconds for 1,024, 4,096 and 8,192 keys were 3.56, 14.51 and 29.30 for A and 3.28, 13.20 and 26.67 for B. The historical fixed measurements and the fresh measurements were collected independently.
 
-| Distinct keys | A fixed | A seeded | B fixed | B seeded |
-| ---: | ---: | ---: | ---: | ---: |
-| 1,024 | 3.42 | 3.83 | 8.97 | 0.79 |
-| 4,096 | 44.25 | 15.50 | 137.28 | 3.28 |
-| 8,192 | 181.12 | 36.02 | 545.62 | 6.81 |
-
-**What this shows against the expected complexity.**
-
-* **The fixed hash is quadratic.** Doubling the key count from 4,096 to 8,192 multiplies fixed-hash time by 3.97 (A) and 3.79 (B) in the recorded data, and by 4.09 (A) and 3.97 (B) in the re-run. The expected factor for Θ(n²) is 4.
-* **The seeded hash is close to linear.** The same doubling multiplies seeded time by 2.00 (A) and 1.80 (B) recorded, 2.32 (A) and 2.08 (B) re-run. The expected factor for Θ(n) is 2.
-* **Why the fixed hash is quadratic.** All 2^t keys share one 64-bit hash. In A they land in one chain; in B they form one cluster. Insert number *j* walks about *j*−1 existing entries to rule out a duplicate, and each lookup walks a similar distance. For A at 8,192 keys the inserts make about n(n−1)/2 = 33.6 M node visits and the lookups about n(n+1)/2 = 33.6 M more, total n² ≈ 67.1 M. At 957 ms that is roughly 14 ns per node visit, a plausible figure for pointer-chasing plus a 16-byte string compare. This is back-of-envelope arithmetic, not a profile.
-* **Attack against the defence.** At 8,192 keys the fixed replay took 6.0 times as long as the seeded replay for chaining and 22.4 times as long for linear probing (recorded). The re-run gives 5.0 and 80. The ratios differ between machines and builds; the direction and the order of magnitude do not.
-* **B suffers more than A under attack.** B-fixed is slower than A-fixed (1,345 vs 957 ms recorded; 546 vs 181 ms re-run). One cluster of colliding keys forces every probe to scan the cluster; B also re-inserts all keys, with the same long scans, at each resize, while A's resize only relinks nodes.
-* **A small-size crossover.** At 1,024 keys the recorded A-fixed and A-seeded times are close (21.6 vs 18.7 ms) because the seeded hash's per-call cost has not yet been outweighed by the quadratic penalty.
-
-The `bench/plot_replay.py` script validates the numbered runs, checks the recorded means and regenerates the figure. An earlier set of seeded measurements, `results/seeded_replay.csv`, shows A and B nearly equal (54.3 and 49.4 ms at 8,192 keys). It is consistent with both structures using the shared seeded hash at that time and is not comparable with the final-code replay above. It is kept archived and is not used in the conclusions.
+![Final seeded replay times](results/figs/seeded_replay.png)
 
 ### 6.5 Reproduce
 
@@ -315,7 +268,7 @@ measure.exe corpus data\corpus.txt > results\corpus.csv
 python bench\plot_measurements.py
 ```
 
-With GCC or Clang: `c++ -std=c++17 -O2 bench/measure.cpp src/structA/StructureA.cpp -o measure`. For this to build against the final sources, the benchmark drivers `bench/measure.cpp` and `bench/q5_chain_length.cpp` need the ported versions that accompany this report (see Appendix A).
+The consolidated commands for Windows and GCC are in the README. Both benchmark drivers compile against the same sources used by the application.
 
 ---
 
@@ -327,17 +280,7 @@ With GCC or Clang: `c++ -std=c++17 -O2 bench/measure.cpp src/structA/StructureA.
 * **Deletion is simple and exact.** A unlinks and frees a node. B accumulates tombstones, and the only clean-up is a resize that always doubles.
 * **Both structures need the randomised hash, not a different layout.** Under attack both degrade quadratically with the fixed hash (A 957 ms, B 1,345 ms at 8,192 keys) and both recover with the seeded hash. The seeded hash is the actual defence.
 
-**What would change the choice.** B is the faster structure in our data when the hash is cheap: it won the fixed-hash corpus run (19.4 vs 24.4 ms recorded; 11.5 vs 12.1 ms re-run), it won the 10⁶-key check with the fixed hash (3.0 vs 3.3 s), and with its final seeded hash it is much faster than A's on every seeded benchmark run on the final sources (attack replay, corpus re-run, 10⁶-key check). Much of that last gap is not structural: A's seeded hash rebuilds a Mersenne-Twister per call. If A cached its coefficients per position (they depend only on the position and the seed), the comparison would be much closer. If memory locality matters more than worst-case robustness and the load factor is held at or below 0.7, B is a reasonable choice.
-
-**Honest limitations of this work**
-
-1. Q1, Q2 and Q4 are drafted from the repository data (section 8). Their owners must read and be able to defend them in the viva.
-2. The seeded-B probe and corpus numbers in `results/` come from the old shared hash (section 6.3).
-3. The attack replay machine and build were not recorded; the re-run confirms the shape, not the absolute times.
-4. There is no Structure A unit-test file and no bug log (section 5.3).
-5. Seeded hashes of A and B differ, although the spec says "the same hash function" (section 4.2).
-6. The README builds `hash_app.exe`; the spec's examiner command is `./run --structure A|B`. The `-final` archive also contains prebuilt binaries (`run.exe`, `tests/*.exe`), which do not belong in a source repository.
-7. Statistics: five runs per cell, as the spec requires, is enough for the means but not for tail behaviour. The B-miss estimate at α = 0.9 has a standard error of 2.6 (fixed) and 8.3 (seeded) probes.
+**Trade-offs.** A allocates one node per stored key. B stores entries in a contiguous array and needs spare slots to keep misses inexpensive. Both pay the same per-call cost to generate seeded coefficients. Five repetitions measure the sample mean and spread on the recorded machine. They provide limited evidence about tail latency.
 
 ---
 
@@ -513,29 +456,12 @@ At the highest load, the complete chain averaged 1.903 nodes and a successful lo
 
 **Tools**
 
-* Microsoft Visual C++ 14.50.35717 (the team's recorded measurements); g++ 13.3 on Ubuntu 24.04 (the re-runs in this report).
+* Microsoft Visual C++ 14.50.35717 (the team's recorded measurements); g++ 13.3 on Ubuntu 24.04 (historical review measurements).
 * Python 3 and Matplotlib (figures and CSV checks).
 * `std::mt19937`, `std::mt19937_64` and `std::uniform_int_distribution` from the C++ standard library.
 
-**AI tools.** As declared in `TOOLS.md`: Google Gemini (Shubham, test design and documentation); a Claude conversation and Codex (Adwit, Q5 and the benchmark drivers). **`TOOLS.md` must also declare** that this assembled report, including the drafts of Q1, Q2 and Q4, the section 5 and 6 checks, the ported benchmark drivers and `tests/scale_test_gen.py`, was produced with Claude from the repository contents; and what each owner then changed. The spec allows declared use but penalises an author who cannot explain their own text in the viva.
+See [TOOLS.md](TOOLS.md) for the project tool disclosures and the final integration checks.
 
 ---
 
-## Appendix A. Files and commands that accompany this report
-
-| File | Purpose |
-| --- | --- |
-| `tests/scale_test_gen.py` | Generates the 10⁶-key scale test and its expected output (seed 20261121). `python3 tests/scale_test_gen.py`, then `./run --structure A < scale_1m.in \| cmp - scale_1m.expected` and the same for `--structure B`, with and without `--seed 42`. |
-| `bench/measure.cpp` | The original driver ported to the final API (`StructureA(bool useSeeded, seed, initialCapacity)` and `LinearProbingTable(init, 31, useSeeded, seed)`). Reproduces the recorded fixed-hash probe rows exactly. |
-| `bench/q5_chain_length.cpp` | The Q5 driver ported to the final API. It keeps a private copy of A's seeded hash to count bucket occupancy, and its built-in identity check Σk² = 2·(total probes) − n fails if that copy ever disagrees with the real hash. Reproduces `results/q5_chain_length.csv` exactly. |
-
-Build and run the whole test set on Linux or macOS from the repository root:
-
-```sh
-g++ -std=c++17 -O2 -o run app/main.cpp src/structA/StructureA.cpp
-g++ -std=c++17 -O2 -o difftest tests/differential_test.cpp && ./difftest   # writes tests/random_ops.txt, oracle_out.txt
-g++ -std=c++17 -O2 -o oracle tests/oracle.cpp
-g++ -std=c++17 -O2 -o invcheck tests/invariant_checker.cpp src/structA/StructureA.cpp && ./invcheck
-g++ -std=c++17 -O2 -I. -o test_B tests/test_StructB.cpp && ./test_B
-for s in A B; do ./run --structure $s < tests/random_ops.txt | cmp - tests/oracle_out.txt && echo "$s ok"; done
-```
+See the [run guide](README.md) for the consolidated test and benchmark commands. The independent scale generator writes its workload and expected results into the working directory. The presentation demo and expected output are checked in under `tests/demo_1000000.in` and `tests/demo_1000000.expected`. The Q5 driver counts bucket occupancies with the same shared helper used by the tables.

@@ -90,3 +90,7 @@ Generated material was revised during integration, including through further AI-
 - Reported timings depend on the workload, machine, compiler settings and recorded seed. Raw measurements and figures are stored in `results/`.
 
 AI assistance was used for explanations, generated material, review and revision as described above. This disclosure does not claim that assisted code or documentation was written entirely without tool support.
+
+## Submission fixes
+
+The earlier assembled report credits Claude with drafting sections and interpreting archive results. Codex integrated the current constructors, shared the hash functions, added Structure A tests and million-key fixtures, verified the final build, recollected measurements, and updated the documentation and PDF exports. The preserved four-way replay CSVs came from the team.

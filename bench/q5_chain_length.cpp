@@ -1,5 +1,6 @@
 // Q5: measure the full chain containing a uniformly selected stored key.
 #include "../src/structA/StructureA.h"
+#include "../src/string_hash.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <iomanip>
@@ -28,8 +29,7 @@ int main() {
                  "universal_bound,longest_chain\n" << std::setprecision(12);
     for (int run = 1; run <= repetitions; ++run) {
         const unsigned seed = 1000 + run;
-        SeededHash hash(seed);
-        StructureA table(&hash, buckets);
+        StructureA table(true, seed, buckets);
         std::vector<std::size_t> sizes(buckets);
         std::size_t inserted = 0;
         for (int step = 1; step <= 9; ++step) {
@@ -37,7 +37,7 @@ int main() {
             while (inserted < n) {
                 const auto& key = keys[inserted];
                 table.insert(key, static_cast<int>(inserted));
-                ++sizes[hash(key) % buckets];
+                ++sizes[string_hash::seededHash(key, seed) % buckets];
                 ++inserted;
             }
             if (table.bucketCount() != buckets || table.count() != static_cast<int>(n)) {

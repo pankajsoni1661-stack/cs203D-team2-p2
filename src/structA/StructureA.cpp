@@ -1,5 +1,5 @@
 #include "StructureA.h"
-#include <random>
+#include "../string_hash.hpp"
 
 using namespace std;
 StructureA::StructureA(bool useSeededMode,
@@ -38,33 +38,11 @@ StructureA::~StructureA() {
 }
 
 
-unsigned long long StructureA::polynomialHash(const string& key) const {
-    unsigned long long hash = 0;
-    for (unsigned char ch : key) {
-        hash = hash * 31 + ch;
-    }
-    return hash;
-}
-
-unsigned long long StructureA::seededHash(const string& key) const {
-    const unsigned long long MOD = 1000000007ULL;
-
-    mt19937_64 randomGenerator(seed);
-    uniform_int_distribution<unsigned long long> randomNumber(0, MOD - 1);
-
-    unsigned long long hash = 0;
-    for (unsigned char ch : key) {
-        unsigned long long a = randomNumber(randomGenerator);
-        hash = (hash + a * (ch + 1)) % MOD;
-    }
-    return hash;
-}
-
 unsigned long long StructureA::hashKey(const string& key) const {
     if (useSeeded) {
-        return seededHash(key);
+        return string_hash::seededHash(key, seed);
     }
-    return polynomialHash(key);
+    return string_hash::polynomialHash(key);
 }
 void StructureA::insert(const string& key, int value) {
     size_t index = hashKey(key) % capacity;

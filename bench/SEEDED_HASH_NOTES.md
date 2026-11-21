@@ -1,6 +1,6 @@
 # Reproducing Q5
 
-The experiment calls the team's `SeededHash` and `StructureA::get(key, value, probes)` directly. See the Q5 section of [the report](../REPORT.md) for the proof and results.
+The experiment calls the shared `string_hash::seededHash` function and `StructureA::get(key, value, probes)` directly. See the Q5 section of [the report](../REPORT.md) for the proof and results.
 
 ## Design
 

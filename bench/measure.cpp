@@ -36,12 +36,12 @@ bool lookup(LinearProbingTable& t, const string& key, int& value, size_t& work) 
 }
 
 template<class F>
-void eachTable(int initial, bool controlled, const SeededHash* hash, F action) {
+void eachTable(int initial, bool controlled, bool seeded, unsigned long long seed, F action) {
     {
-        StructureA a(hash, initial);
+        StructureA a(seeded, seed, initial);
         action("A", a);
     }
-    LinearProbingTable b(initial, 31, hash);
+    LinearProbingTable b(initial, 31, seeded, seed);
     if (controlled) b.max_load_factor = 0.9;
     action("B", b);
 }
@@ -59,7 +59,7 @@ string randomKey(mt19937_64& rng, size_t length) {
 
 void probes(ostream& out) {
     for (int run = 1; run <= runs; ++run) {
-        SeededHash hash(1000 + run);
+        const unsigned seed = 1000 + run;
         for (int step = 1; step <= 9; ++step) {
             mt19937_64 rng(31000 + 10 * run + step);
             const int n = probeCapacity * step / 10;
@@ -67,7 +67,7 @@ void probes(ostream& out) {
             for (auto& k : keys) k = randomKey(rng, 12);
             for (auto& k : absent) k = randomKey(rng, 13);
             for (bool seeded : {false, true}) {
-                eachTable(probeCapacity, true, seeded ? &hash : nullptr, [&](const char* st, auto& t) {
+                eachTable(probeCapacity, true, seeded, seed, [&](const char* st, auto& t) {
                     for (int i = 0; i < n; ++i) t.insert(keys[i], i);
                     require(live(t) == n && capacity(t) == probeCapacity, "probe setup mismatch");
                     for (bool hit : {true, false}) {
@@ -112,10 +112,10 @@ void timeCorpus(ostream& out, const vector<string>& words) {
     map<string, int> expected;
     for (const auto& word : words) ++expected[word];
     for (int run = 1; run <= runs; ++run) {
-        SeededHash hash(5000 + run);
+        const unsigned seed = 5000 + run;
         const bool seededFirst = run % 2 == 0;
         for (bool seeded : {seededFirst, !seededFirst}) {
-            eachTable(16, false, seeded ? &hash : nullptr, [&](const char* st, auto& table) {
+            eachTable(16, false, seeded, seed, [&](const char* st, auto& table) {
                 auto start = Clock::now();
                 for (const auto& word : words) {
                     int count = 0;

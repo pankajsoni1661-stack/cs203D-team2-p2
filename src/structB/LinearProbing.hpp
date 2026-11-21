@@ -3,8 +3,7 @@
 
 #include <iostream>
 #include <string>
-#include <random>
-#include <vector>
+#include "../string_hash.hpp"
 
 using namespace std;
 
@@ -28,10 +27,6 @@ class LinearProbingTable {
 private:
     bool useSeeded;
     unsigned long long seed;
-    int hashCapacity;
-    mt19937_64 randomGenerator;
-    vector<vector<unsigned long long>> randomValues;
-
 public:
     Slot* table;
     int capacity;
@@ -52,8 +47,6 @@ public:
         base = hash_base;
         useSeeded = use_seeded_hash;
         seed = hash_seed;
-        hashCapacity = 0;
-        randomGenerator.seed(seed);
 
         table = new Slot[capacity];
     }
@@ -63,35 +56,9 @@ public:
     }
 
     int hashFunction(const string& key) {
-        if (useSeeded) {
-           
-            if (hashCapacity != capacity) {
-                hashCapacity = capacity;
-                randomValues.clear();
-                randomGenerator.seed(seed);
-            }
-
-            uniform_int_distribution<unsigned long long> dist(0, capacity - 1);
-            while (randomValues.size() < key.size()) {
-                vector<unsigned long long> values(256);
-                for (int i = 0; i < 256; i++) {
-                    values[i] = dist(randomGenerator);
-                }
-                randomValues.push_back(values);
-            }
-
-            unsigned long long h = 0;
-            for (size_t i = 0; i < key.size(); i++) {
-                h = (h + randomValues[i][(unsigned char)key[i]]) % capacity;
-            }
-            return h;
-        }
-
-        unsigned long long h = 0;
-        for (char c : key) {
-            h = h * base + (unsigned char)c;
-        }
-        return h % capacity;
+        const auto hash = useSeeded ? string_hash::seededHash(key, seed)
+                                    : string_hash::polynomialHash(key, base);
+        return static_cast<int>(hash % capacity);
     }
 
     void resize() {
