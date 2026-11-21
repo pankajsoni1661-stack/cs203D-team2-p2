@@ -17,19 +17,20 @@
 | Shubham Poddar | 250004032 | `subham2352007-eng` | Test owner (also builds the worst-case inputs, as the spec asks of a five-member team) | Q4 |
 | Adwit Tiwari | 250004004 | `Adwit-webdev` | Measurement owner | Q5 |# CS203D Project 2 · Hash tables and word counts
 
-The C++ application stores string keys and integer values using either separate chaining (A) or linear probing (B). Both implementations support insertion, updates, lookup, deletion and a count of distinct keys. The word counter uses the same tables to count words in a text file.
+The C++ application stores string keys and integer values using either separate chaining (A) or linear probing (B). Both implementations support insertion, updates, lookup, deletion and a count of distinct keys. The word counter uses the same tables to count words in a text file.\
+
 
 ## Requirements
 
 * **Languages:** C++17 (data structures, CLI application, tests, and benchmarks) and Python 3 (graph plotting)
 * **C++ Compiler:** `g++` (GCC 9.0+ or MinGW-w64) supporting `-std=c++17` and `-O2`
-* **Python Interpreter:** Python 3.8+ with `matplotlib` (`pip install matplotlib`) for generating plots in `results/figs/ \
+* **Python Interpreter:** Python 3.8+ with `matplotlib` (`pip install matplotlib`) for generating plots in `results/figs/ 
 
 ## # Testing & Verification Commands (`tests/`)
 
 This guide covers building and executing all correctness, invariant, and adversarial collision tests for **Structure A (Separate Chaining)** and **Structure B (Linear Probing)** in both **fixed base-31** and **seeded** hash modes.
 
----\
+---
 
 ## 1. Prerequisites & Build Unified Application
 
@@ -43,7 +44,7 @@ cd cs203D-team2-p2-main_final
 ```cmd
 g++ -O2 -std=c++17 app/main.cpp src/structA/StructureA.cpp -o run.exe
 ```
-\
+
 
 ## 2. Internal Invariant Checker (`tests/invariant_checker.cpp`)
 
@@ -59,7 +60,7 @@ tests\inv_check.exe
 ```text
 [PASS] All invariants held for Structure A & B (fixed & seeded) across 20000 operations!
 ```
-\
+
 ---
 
 ## 3. Differential Test Against Reference Oracle (`tests/differential_test.cpp` & `tests/oracle.cpp`)
@@ -88,7 +89,7 @@ fc tests\oracle_out.txt tests\outB_seeded.txt
 **Expected Output:**
 * Windows: `FC: no differences encountered` for all four files.
 
----\
+---
 
 ## 4. Adversarial Collision Attack Generator & Timing Replay (`tests/collision_generator.cpp`)
 
@@ -109,7 +110,7 @@ run.exe --structure B --seed 42 --attack tests/collision_1024.txt
 run.exe --structure B --seed 42 --attack tests/collision_4096.txt
 run.exe --structure B --seed 42 --attack tests/collision_8192.txt
 ```
-  `\
+  `
 # Run the Application in Command Prompt (CMD)
 
 Run these commands from your project folder. Compilation requires g++ to be installed and available in PATH.
