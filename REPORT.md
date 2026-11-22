@@ -3,7 +3,7 @@
 **CS 203D · Project 2 · Team 2 (`cs203D-team2-p2`)**
 Structure A: separate chaining · Structure B: linear probing with tombstones
 
-The probe, corpus, Q5 and seeded replay results were collected with the shared hash implementation in this repository. The earlier four-way replay CSVs are preserved as historical measurements and identified separately in section 6.4.
+The probe, corpus, Q5 and seeded replay results were collected with the shared hash implementation in this repository. Section 6.4 separately labels the earlier fixed-hash baseline.
 
 ---
 
@@ -243,15 +243,15 @@ Both tables draw their coefficients from the same per-call generator. The seeded
 
 ### 6.4 Running time under attack
 
-The following historical four-way replay was supplied with the project. Its compiler, host and source revision were not recorded. Every CSV row passed the recorded checks. The final-build seeded measurements appear below.
+The historical fixed-hash baseline below gives mean times in milliseconds over five runs. Its compiler, host and source revision were not recorded. The separate seeded figure uses the final shared implementation. These independent datasets cannot establish a paired speedup.
 
-| Distinct keys | Commands | A fixed | A seeded | B fixed | B seeded |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 1,024 | 2,048 | 21.59 | 18.65 | 28.58 | 8.52 |
-| 4,096 | 8,192 | 241.15 | 79.54 | 355.08 | 33.35 |
-| 8,192 | 16,384 | 957.43 | 159.42 | 1,345.13 | 60.04 |
+| Distinct keys | Commands | A fixed (ms) | B fixed (ms) |
+| ---: | ---: | ---: | ---: |
+| 1,024 | 2,048 | 21.59 | 28.58 |
+| 4,096 | 8,192 | 241.15 | 355.08 |
+| 8,192 | 16,384 | 957.43 | 1,345.13 |
 
-![Fixed and seeded mean replay times for both structures, with sample standard deviations](results/figs/replay_comparison.png)
+![Historical fixed-hash replay means with sample standard deviations](results/figs/replay_fixed.png)
 
 **Final shared-hash build.** The three workload SHA-256 digests match the original seeded dataset. Five fresh runs per structure and size used seed 42 and verified every answer and final count. Average seeded replay times in milliseconds for 1,024, 4,096 and 8,192 keys were 3.56, 14.51 and 29.30 for A and 3.28, 13.20 and 26.67 for B. The historical fixed measurements and the fresh measurements were collected independently.
 
@@ -278,7 +278,7 @@ The consolidated commands for Windows and GCC are in the README. Both benchmark 
 
 * **Predictable cost.** A's probe counts follow α and 1 + α/2 and stay below 1.5 for any load it can reach, so its behaviour at 10⁶ keys is not a surprise. B's miss cost follows ½(1 + 1/(1−α)²) and is 45–56 probes at α = 0.9; it is only safe because the table is resized at 0.7.
 * **Deletion is simple and exact.** A unlinks and frees a node. B accumulates tombstones, and the only clean-up is a resize that always doubles.
-* **Both structures need the randomised hash, not a different layout.** Under attack both degrade quadratically with the fixed hash (A 957 ms, B 1,345 ms at 8,192 keys) and both recover with the seeded hash. The seeded hash is the actual defence.
+* **Both structures need the randomised hash, not a different layout.** The historical fixed-hash runs took 957 ms for A and 1,345 ms for B at 8,192 keys. The final seeded runs on that workload took 29.30 ms and 26.67 ms respectively. The seeded hash is the actual defence.
 
 **Trade-offs.** A allocates one node per stored key. B stores entries in a contiguous array and needs spare slots to keep misses inexpensive. Both pay the same per-call cost to generate seeded coefficients. Five repetitions measure the sample mean and spread on the recorded machine. They provide limited evidence about tail latency.
 

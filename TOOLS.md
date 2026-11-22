@@ -93,4 +93,4 @@ AI assistance was used for explanations, generated material, review and revision
 
 ## Submission fixes
 
-The earlier assembled report credits Claude with drafting sections and interpreting archive results. Codex integrated the current constructors, shared the hash functions, added Structure A tests and million-key fixtures, verified the final build, recollected measurements, and updated the documentation and PDF exports. The preserved four-way replay CSVs came from the team.
+The earlier assembled report credits Claude with drafting sections and interpreting archive results. Codex integrated the current constructors, shared the hash functions, added Structure A tests and million-key fixtures, verified the final build, recollected measurements, and updated the documentation and PDF exports. The historical fixed-hash baseline uses the team’s supplied timings.

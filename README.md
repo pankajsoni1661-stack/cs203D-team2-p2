@@ -176,7 +176,7 @@ Replace `8192` with `1024` or `4096` to run the smaller attack inputs.
 
 ## Run Adwit's benchmarks and graphs
 
-**To regenerate the graphs from saved data on main**, use the following four commands. The first reads `results/probes.csv` and `results/corpus.csv`, the second reads `results/q5_chain_length.csv`, the third validates the six supplied timing files under `results/replay/`, and the fourth redraws the seeded replay figure. The Q5 figure is written to `results/q5_chain_length.png`. The other comparison figures are written under `results/figs/`.
+**To regenerate the graphs from saved data on main**, use the following four commands. The first reads `results/probes.csv` and `results/corpus.csv`, the second reads `results/q5_chain_length.csv`, the third plots the historical fixed-hash baseline from `results/replay/`, and the fourth plots the final shared-hash measurements from `results/seeded_replay.csv`. The Q5 figure is written to `results/q5_chain_length.png`. The other comparison figures are written under `results/figs/`.
 
 ```bat
 python bench\plot_measurements.py
