@@ -1,0 +1,9 @@
+I apple 35
+I pear 1
+G apple
+G plum
+N
+D apple
+G apple
+N
+G plum
