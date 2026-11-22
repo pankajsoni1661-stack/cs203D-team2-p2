@@ -15,10 +15,11 @@
 | Kartikey Gupta | 250003045 | `kartikey357` | Structure B owner | Q2 |
 | Pankaj Soni | 250004028 | `pankajsoni1661-stack` | Application owner | Q3 |
 | Shubham Poddar | 250004032 | `subham2352007-eng` | Test owner (also builds the worst-case inputs, as the spec asks of a five-member team) | Q4 |
-| Adwit Tiwari | 250004004 | `Adwit-webdev` | Measurement owner | Q5 |
+| Adwit Tiwari | 250004004 | `Adwit-webdev` | Measurement owner | Q5 |# CS203D Project 2 · Hash tables and word counts
 
-The C++ application stores string keys and integer values using either separate chaining (A) or linear probing (B). Both implementations support insertion, updates, lookup, deletion and a count of distinct keys. The word counter uses the same tables to count words in a text file.
+The C++ application stores string keys and integer values using either separate chaining (A) or linear probing (B). Both implementations support insertion, updates, lookup, deletion and a count of distinct keys. The word counter uses the same tables to count words in a text file.\
 
+<br>
 
 ## 2. Requirements
 
@@ -198,6 +199,12 @@ python bench\plot_replay.py
 python bench\plot_seeded_replay.py
 ```
 
+To run the complete test suite and reproduce the benchmarks and figures from the repository root, use the same Native Tools Command Prompt. With GCC, omit `--msvc`.
+
+```bat
+python tests/run_suite.py --msvc --scale --bench
+```
+
 ## How to run the program on a test file
 
 ### Build & Run Command
@@ -215,16 +222,6 @@ NOT_FOUND
 NOT_FOUND
 
 
-## Run the full suite and reproduce figures
-
-```bat
-python tests/run_suite.py --msvc --scale --bench
-```
-
-With g++ use `python3 tests/run_suite.py --scale --bench`. The suite compiles from current sources in a temporary directory. It runs A and B unit tests, invariants, the command and word fixtures, the standalone oracle, 100,000 random operations and the supplied million-key demonstration. Both structures are checked in fixed and seeded mode. The `--scale` flag adds the 3,501,003-command independent oracle check. The `--bench` flag recollects probe, corpus and Q5 data and redraws their figures and the historical replay comparison. Fresh CSVs replace the corresponding files in `results/`.
-
-[Measurement commands and definitions](bench/EXPERIMENTS.md) · [Q5 protocol](bench/SEEDED_HASH_NOTES.md) · [Report](REPORT.pdf) · [Slides](docs/slides.pdf) · [Tool disclosures](TOOLS.md)
-
 ## Known Limitations
 
 1. **String Keys & Signed 32-Bit Integer Values Only:**
@@ -233,6 +230,15 @@ With g++ use `python3 tests/run_suite.py --scale --bench`. The suite compiles fr
 2. **No Automatic Table Shrinking (`shrinkCapacity`):**
    * Both **Structure A** (`doubleCapacity`) and **Structure B** (`resize`) double their bucket/slot arrays when the load factor exceeds `maxLoad` (`1.0` and `0.7`, respectively), but neither implementation shrinks the table when a large fraction of keys are deleted (`D`). Memory allocated during peak load remains reserved until the table is destroyed.
 
-3. **Seeded lookup cost.** Both tables regenerate position coefficients from the seed on each hash call.
+3. **Memory & Per-Call Overhead in Seeded Hashing:**
+   * **Structure A (`seededHash`):** Re-initializes `std::mt19937_64` on every hash call, adding a small constant CPU overhead per operation compared to the fixed polynomial loop (`hash * 31 + ch`).
+   * **Structure B (`Tabulation Hashing`):** Caches a 256-entry lookup table per character position (`randomValues`). While fast in $O(1)$ per character, hashing unusually long keys (e.g., strings of thousands of characters) allocates $256 \times \text{key.length()} \times 8$ bytes of lookup memory.
 
-4. **Tombstones.** Deletion leaves tombstones in B until rebuilding clears them. Tombstones count toward B's resize threshold.
+4. **Tombstone Accumulation Under Sustained Churn (Structure B):**
+   * In `LinearProbingTable`, heavy cycles of repeated insertions and deletions without net growth accumulate `TOMBSTONE` slots. Although tombstones are counted toward the resize trigger (`(num_keys + num_tombstones + 1) / capacity > 0.7`) and purged upon resizing, unsuccessful `get()` queries still scan across all tombstones in a cluster prior to a resize.
+
+5. **Non-Thread-Safe & Non-Copyable Structures:**
+   * Neither structure uses locks or atomic operations, so concurrent access from multiple threads is not supported. Additionally, copy constructors and copy assignment operators are explicitly disabled (`= delete`) in `StructureA` (and shallow-pointer unsafe if copied in `LinearProbingTable`) to prevent double-free memory errors.
+
+
+
