@@ -199,7 +199,7 @@ python bench\plot_replay.py
 python bench\plot_seeded_replay.py
 ```
 
-To run the complete test suite and reproduce the benchmarks and figures from the repository root, use the same Native Tools Command Prompt. With GCC, omit `--msvc`.
+From the repository root, use the same Native Tools Command Prompt to run the full test suite and collect fresh probe, corpus, and Q5 measurements. The command also redraws the replay graphs from the saved timings. With GCC, omit `--msvc`.
 
 ```bat
 python tests/run_suite.py --msvc --scale --bench
@@ -230,9 +230,7 @@ NOT_FOUND
 2. **No Automatic Table Shrinking (`shrinkCapacity`):**
    * Both **Structure A** (`doubleCapacity`) and **Structure B** (`resize`) double their bucket/slot arrays when the load factor exceeds `maxLoad` (`1.0` and `0.7`, respectively), but neither implementation shrinks the table when a large fraction of keys are deleted (`D`). Memory allocated during peak load remains reserved until the table is destroyed.
 
-3. **Memory & Per-Call Overhead in Seeded Hashing:**
-   * **Structure A (`seededHash`):** Re-initializes `std::mt19937_64` on every hash call, adding a small constant CPU overhead per operation compared to the fixed polynomial loop (`hash * 31 + ch`).
-   * **Structure B (`Tabulation Hashing`):** Caches a 256-entry lookup table per character position (`randomValues`). While fast in $O(1)$ per character, hashing unusually long keys (e.g., strings of thousands of characters) allocates $256 \times \text{key.length()} \times 8$ bytes of lookup memory.
+3. **Seeded hashing cost.** Structures A and B both call `string_hash::seededHash`. Each call initializes `std::mt19937_64` with the table's seed and generates one coefficient per byte of the key. Repeated lookups regenerate those coefficients.
 
 4. **Tombstone Accumulation Under Sustained Churn (Structure B):**
    * In `LinearProbingTable`, heavy cycles of repeated insertions and deletions without net growth accumulate `TOMBSTONE` slots. Although tombstones are counted toward the resize trigger (`(num_keys + num_tombstones + 1) / capacity > 0.7`) and purged upon resizing, unsuccessful `get()` queries still scan across all tombstones in a cluster prior to a resize.
